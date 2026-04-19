@@ -1,0 +1,6 @@
+# KARE has NO external dependencies.
+# Everything uses Python's standard library (http.server, urllib, json, threading).
+#
+# Python 3.8 or newer required.
+# Download Python from: https://www.python.org/downloads/
+# (On Windows: check "Add Python to PATH" during install)

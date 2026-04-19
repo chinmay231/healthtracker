@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>KARE</title>
+  <style>
+    :root {
+      --paper: #e7e0d6;
+      --paper-soft: #fff7dc;
+      --card: rgba(255, 250, 239, 0.8);
+      --line: rgba(122, 113, 97, 0.16);
+      --ink: #5b564d;
+      --muted: #877e72;
+      --muted-strong: #726a5f;
+      --teal: #a8861f;
+      --ok: #6f8b62;
+      --warn: #b7852e;
+      --bad: #a56a58;
+      --shadow: rgba(92, 83, 70, 0.16);
+      --radius: 18px;
+      --brand-font: "Avenir Next", "Montserrat", "Arial Black", "Helvetica Neue", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html {
+      background:
+        radial-gradient(circle at 50% 18%, rgba(255, 247, 220, 0.92) 0%, rgba(255, 247, 220, 0.92) 18%, rgba(231, 224, 214, 0.75) 19%, rgba(203, 194, 179, 0.98) 64%, #c9c1b4 100%);
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: "Avenir Next", "Segoe UI", Verdana, sans-serif;
+      line-height: 1.5;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 100%);
+      position: relative;
+      overflow-x: hidden;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      width: min(84vw, 980px);
+      height: min(84vw, 980px);
+      left: 50%;
+      top: 110px;
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 249, 229, 0.94) 0%, rgba(252, 243, 212, 0.88) 62%, rgba(252, 243, 212, 0.12) 63%, transparent 74%);
+      z-index: -2;
+      filter: blur(1px);
+      pointer-events: none;
+    }
+    button, input, select, textarea {
+      font: inherit;
+    }
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 999px;
+      padding: 10px 20px;
+      transition: all 0.16s ease;
+    }
+    button:hover { transform: translateY(-1px); }
+    .page {
+      width: min(1000px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 48px;
+      position: relative;
+      z-index: 1;
+    }
+    .header {
+      padding: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 30px;
+      margin-bottom: 28px;
+      background:
+        linear-gradient(145deg, rgba(255, 250, 232, 0.7), rgba(255, 248, 231, 0.32)),
+        rgba(255, 255, 255, 0.14);
+      box-shadow: 0 24px 60px -40px var(--shadow);
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(220px, 340px);
+      gap: 20px;
+      align-items: center;
+    }
+    h1 { margin: 0 0 8px 0; font-size: 32px; }
+    h2 { margin: 0 0 8px 0; font-size: 20px; }
+    h3 { margin: 0 0 6px 0; font-size: 16px; }
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+      border: 1px solid var(--line);
+      box-shadow: 0 18px 40px -34px var(--shadow);
+      backdrop-filter: blur(8px);
+    }
+    .card-head { margin-bottom: 20px; }
+    .btn {
+      background: #635c52;
+      color: white;
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      box-shadow: 0 14px 24px -22px rgba(73, 65, 55, 0.8);
+    }
+    .btn:hover { background: #524c43; }
+    .btn.primary { background: var(--teal); }
+    .btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--ink); }
+    .btn.danger { background: var(--bad); color: white; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .stat {
+      background: rgba(255,255,255,0.5);
+      padding: 12px;
+      border-radius: var(--radius);
+      text-align: center;
+    }
+    .stat strong { display: block; font-size: 24px; color: var(--teal); }
+    .stat span { display: block; font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .field label { font-weight: 500; font-size: 13px; color: var(--muted-strong); }
+    .field input, .field select, .field textarea {
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 252, 244, 0.96);
+      color: var(--ink);
+    }
+    .help-text {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0;
+    }
+    .status-note {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.45);
+      border: 1px solid var(--line);
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .field textarea { resize: vertical; min-height: 80px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .actions { display: flex; gap: 8px; margin-top: 14px; }
+    .list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      background: rgba(255,255,255,0.5);
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+      border: 1px solid var(--line);
+    }
+    .list-item-name { flex: 1; }
+    .list-item-name strong { display: block; }
+    .list-item-name small { color: var(--muted); }
+    .list-item-actions { display: flex; gap: 6px; }
+    .list-item-actions button { padding: 6px 12px; font-size: 12px; }
+    .checkbox-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .checkbox-row input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
+    .checkbox-row label { flex: 1; margin: 0; cursor: pointer; }
+    .date-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .date-nav button { padding: 6px 12px; font-size: 12px; }
+    .brand-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .brand-kicker {
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.28em;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .brand-lockup {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 10px;
+      margin: 0;
+      line-height: 0.92;
+    }
+    .brand-lockup strong {
+      font-family: var(--brand-font);
+      font-size: clamp(52px, 8vw, 92px);
+      font-weight: 900;
+      letter-spacing: -0.08em;
+      color: #fffdf7;
+      text-shadow: 0 10px 28px rgba(93, 83, 67, 0.26);
+    }
+    .brand-subtitle {
+      margin: 0;
+      max-width: 540px;
+      font-size: 16px;
+      color: var(--muted-strong);
+    }
+    .brand-orb {
+      position: relative;
+      min-height: 240px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .brand-orb::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 40px;
+      background:
+        radial-gradient(circle at 50% 48%, rgba(255, 249, 228, 0.96) 0%, rgba(255, 243, 208, 0.86) 52%, rgba(255, 243, 208, 0.18) 53%, transparent 72%);
+      opacity: 0.95;
+    }
+    .brand-orb::after {
+      content: "";
+      position: absolute;
+      width: 72%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      border: 3px solid rgba(168, 134, 31, 0.72);
+      box-shadow: inset 0 0 0 18px rgba(255,255,255,0.18);
+    }
+    .orb-ring {
+      position: absolute;
+      width: 92%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      border: 6px solid rgba(95, 88, 78, 0.74);
+    }
+    .orb-ring::before,
+    .orb-ring::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(168, 134, 31, 0.8);
+    }
+    .orb-ring::before {
+      width: 10px;
+      height: 10px;
+      left: 18%;
+      top: 24%;
+      box-shadow:
+        180px -18px 0 0 rgba(168, 134, 31, 0.36),
+        126px 172px 0 0 rgba(168, 134, 31, 0.3);
+    }
+    .orb-ring::after {
+      width: 14px;
+      height: 14px;
+      right: 14%;
+      bottom: 24%;
+      opacity: 0.28;
+    }
+    .orb-label {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      font-family: var(--brand-font);
+      font-size: 14px;
+      letter-spacing: 0.34em;
+      text-transform: uppercase;
+      color: var(--muted-strong);
+    }
+    .profile-card {
+      position: relative;
+      overflow: hidden;
+      background:
+        linear-gradient(150deg, rgba(255, 250, 233, 0.92), rgba(255, 246, 220, 0.78)),
+        rgba(255,255,255,0.28);
+    }
+    .profile-card::before {
+      content: "";
+      position: absolute;
+      width: 360px;
+      height: 360px;
+      border-radius: 50%;
+      right: -120px;
+      top: -170px;
+      background: radial-gradient(circle, rgba(255, 250, 233, 0.88) 0%, rgba(252, 243, 212, 0.8) 68%, rgba(252, 243, 212, 0.04) 69%, transparent 100%);
+      pointer-events: none;
+    }
+    .profile-card::after {
+      content: "";
+      position: absolute;
+      right: -26px;
+      bottom: -26px;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      border: 2px solid rgba(168, 134, 31, 0.18);
+      pointer-events: none;
+    }
+    .profile-card > * {
+      position: relative;
+      z-index: 1;
+    }
+    @media (max-width: 720px) {
+      .header {
+        grid-template-columns: 1fr;
+        padding: 22px;
+      }
+      .form-row { grid-template-columns: 1fr; }
+      .actions { flex-wrap: wrap; }
+      .list-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .list-item-actions { width: 100%; flex-wrap: wrap; }
+      .brand-orb { min-height: 190px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <div class="brand-copy">
+        <p class="brand-kicker">CHYNJ | Care For Change</p>
+        <h1 class="brand-lockup"><strong>KARE</strong></h1>
+        <p class="brand-subtitle">KARE is CHYNJ’s calm care companion for medicines, movement, check-ins, and the people helping along the way.</p>
+      </div>
+      <div class="brand-orb" aria-hidden="true">
+        <div class="orb-ring"></div>
+        <div class="orb-label">care in rhythm</div>
+      </div>
+    </div>
+
+    <!-- Profile -->
+    <div class="card profile-card">
+      <div class="card-head">
+        <h2>Your Profile</h2>
+        <p style="margin: 0; color: var(--muted);">A soft home base for the person receiving care and the people supporting them.</p>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Your name</label>
+          <input id="profile-name" type="text" placeholder="e.g. Sarah">
+        </div>
+        <div class="field">
+          <label>Caregiver / contact</label>
+          <input id="profile-caregiver" type="text" placeholder="e.g. Mom">
+        </div>
+      </div>
+    </div>
+
+    <!-- WhatsApp Settings -->
+    <div class="card">
+      <div class="card-head"><h2>WhatsApp Settings</h2></div>
+      <p class="help-text" style="margin-bottom: 16px;">The default CallMeBot setup below is the fallback for one WhatsApp number. Each extra caretaker usually needs their own CallMeBot API key in the caretaker form.</p>
+      <div class="form-row">
+        <div class="field">
+          <label>Default WhatsApp number</label>
+          <input id="wa-default-phone" type="text" placeholder="Country code + number (e.g. 919876543210)">
+        </div>
+        <div class="field">
+          <label>Default CallMeBot API key</label>
+          <input id="wa-default-api-key" type="password" placeholder="Paste the default key here">
+        </div>
+      </div>
+      <p class="help-text">This is stored only on this device. Caretaker API keys stay out of the record backup file.</p>
+      <div class="actions">
+        <button class="btn primary" onclick="saveWhatsAppSettings()">Save WhatsApp Settings</button>
+      </div>
+      <div id="whatsapp-status" class="status-note"></div>
+    </div>
+
+    <!-- Caretakers -->
+    <div class="card">
+      <div class="card-head"><h2>Caretakers</h2></div>
+      <p style="font-size: 13px; color: var(--muted); margin-bottom: 16px;">Add WhatsApp numbers of caretakers who will receive medicine reminders and track activities. If the number is different from the default WhatsApp settings above, add that caretaker's own CallMeBot API key too.</p>
+      <button class="btn primary" onclick="showCaretakerForm()">+ Add Caretaker</button>
+      <div id="caretaker-form" style="display:none; margin-top: 16px; padding: 16px; background: rgba(255,255,255,0.3); border-radius: var(--radius);">
+        <div id="caretaker-form-title" style="font-size: 14px; color: var(--muted); margin-bottom: 12px;"></div>
+        <div class="field">
+          <label>Caretaker name</label>
+          <input id="caretaker-name" type="text" placeholder="e.g. NAME">
+        </div>
+        <div class="field">
+          <label>WhatsApp number</label>
+          <input id="caretaker-phone" type="text" placeholder="Country code + number (e.g. 919876543210)">
+        </div>
+        <div class="field">
+          <label>CallMeBot API key</label>
+          <input id="caretaker-api-key" type="password" placeholder="Needed for this caretaker's own number">
+          <p class="help-text">Leave this blank only if this caretaker uses the same number as the default WhatsApp settings above.</p>
+        </div>
+        <div class="actions">
+          <button class="btn primary" onclick="saveCaretaker()">Save</button>
+          <button class="btn ghost" onclick="hideCaretakerForm()">Cancel</button>
+        </div>
+      </div>
+      <div id="caretakers-list" style="margin-top: 16px;"></div>
+    </div>
+
+    <!-- Medicines -->
+    <div class="card">
+      <div class="card-head">
+        <h2>Medicines</h2>
+        <p>Track what you take and when.</p>
+      </div>
+      <button class="btn primary" onclick="showMedicineForm()">+ Add Medicine</button>
+      <div id="medicine-form" style="display:none; margin-top: 16px; padding: 16px; background: rgba(255,255,255,0.3); border-radius: var(--radius);">
+        <div id="form-title" style="font-size: 14px; color: var(--muted); margin-bottom: 12px;"></div>
+        <div class="field">
+          <label>Medicine name</label>
+          <input id="med-name" type="text" placeholder="e.g. Paracetamol">
+        </div>
+        <div class="field">
+          <label>Dosage</label>
+          <input id="med-dose" type="text" placeholder="e.g. 500mg">
+        </div>
+        <div class="field">
+          <label>Reminder times (add multiple if needed)</label>
+          <div id="med-times-list" style="margin-bottom: 10px;"></div>
+          <div style="display: flex; gap: 8px;">
+            <input id="med-time" type="text" placeholder="HH:MM (e.g. 09:00)" style="flex: 1;">
+            <button class="btn ghost" onclick="addReminderTime()" style="padding: 10px 12px;">+ Add Time</button>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn primary" onclick="saveMedicine()">Save</button>
+          <button class="btn ghost" onclick="hideMedicineForm()">Cancel</button>
+        </div>
+      </div>
+      <div id="medicines-list" style="margin-top: 16px;"></div>
+    </div>
+
+    <!-- Activities -->
+    <div class="card">
+      <div class="card-head">
+        <h2>Recovery Activities</h2>
+        <p>Daily movement and wellness, the KARE way.</p>
+      </div>
+      <button class="btn primary" onclick="showActivityForm()">+ Add Activity</button>
+      <div id="activity-form" style="display:none; margin-top: 16px; padding: 16px; background: rgba(255,255,255,0.3); border-radius: var(--radius);">
+        <div class="field">
+          <label>Activity name</label>
+          <input id="act-name" type="text" placeholder="e.g. Walk, Stretching, Breathing">
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>Instructions (optional)</label>
+            <input id="act-instructions" type="text" placeholder="e.g. 10 minute walk">
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn primary" onclick="addActivity()">Save</button>
+          <button class="btn ghost" onclick="hideActivityForm()">Cancel</button>
+        </div>
+      </div>
+      <div id="activities-list" style="margin-top: 16px;"></div>
+    </div>
+
+    <!-- Daily Check-in & Medicines Today -->
+    <div class="card">
+      <div class="card-head">
+        <h2 id="today-label">Today — April 19, 2026</h2>
+      </div>
+      <div class="stats">
+        <div class="stat">
+          <strong id="med-count">0</strong>
+          <span>Medicine slots</span>
+        </div>
+        <div class="stat">
+          <strong id="med-done">0</strong>
+          <span>Taken</span>
+        </div>
+        <div class="stat">
+          <strong id="act-count">0</strong>
+          <span>Activities</span>
+        </div>
+        <div class="stat">
+          <strong id="act-done">0</strong>
+          <span>Done</span>
+        </div>
+      </div>
+
+      <h3>Medicines Today</h3>
+      <div id="today-medicines" style="margin-bottom: 20px;"></div>
+
+      <h3>Activities Today</h3>
+      <div id="today-activities" style="margin-bottom: 20px;"></div>
+
+      <h3>Check-in</h3>
+      <div class="form-row">
+        <div class="field">
+          <label>Pain level (0-10)</label>
+          <input id="checkin-pain" type="number" min="0" max="10">
+        </div>
+        <div class="field">
+          <label>Energy (0-10)</label>
+          <input id="checkin-energy" type="number" min="0" max="10">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Sleep hours</label>
+          <input id="checkin-sleep" type="text" placeholder="8">
+        </div>
+        <div class="field">
+          <label>Water/fluids</label>
+          <input id="checkin-water" type="text" placeholder="6-8 glasses">
+        </div>
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="checkin-notes" placeholder="How are you feeling? Any concerns?"></textarea>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="card">
+      <div class="card-head"><h2>History</h2></div>
+      <div class="date-nav">
+        <button class="btn ghost" onclick="previousDay()">← Yesterday</button>
+        <span id="history-date">Today</span>
+        <button class="btn ghost" onclick="nextDay()">Tomorrow →</button>
+      </div>
+      <div id="history-view"></div>
+    </div>
+
+    <!-- Export -->
+    <div class="card">
+      <div class="card-head"><h2>Backup</h2></div>
+      <p style="font-size: 13px; color: var(--muted);">Download your KARE data as a backup or to share.</p>
+      <button class="btn primary" onclick="exportData()">📥 Download Record</button>
+      <button class="btn ghost" onclick="importData()">📤 Restore from File</button>
+      <input id="import-file" type="file" style="display:none;" accept=".json">
+    </div>
+  </div>
+
+  <script>
+    const STORE_KEY = "health_tracker_v1";
+
+    let state = {
+      profile: { name: "", caregiver: "" },
+      caretakers: [],
+      medicines: [],
+      activities: [],
+      records: {},
+      today: formatDate(new Date()),
+      viewDate: formatDate(new Date()),
+      currentCaretaker: null
+    };
+    let whatsappConfig = {
+      defaultPhone: "",
+      defaultApiKey: "",
+      caretakerKeys: {}
+    };
+
+    function formatDate(d) {
+      return d.toISOString().split('T')[0];
+    }
+
+    function dateLabel(dateStr) {
+      const d = new Date(dateStr + 'T00:00:00');
+      return d.toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'});
+    }
+
+    function normalizePhone(raw) {
+      return String(raw || '').replace(/\D/g, '');
+    }
+
+    function buildWhatsAppConfigPayload() {
+      const caretakerIds = new Set(state.caretakers.map(c => c.id));
+      return {
+        default_phone: normalizePhone(whatsappConfig.defaultPhone),
+        default_api_key: (whatsappConfig.defaultApiKey || '').trim(),
+        caretaker_keys: Object.fromEntries(
+          Object.entries(whatsappConfig.caretakerKeys || {}).filter(
+            ([id, value]) => caretakerIds.has(id) && String(value || '').trim()
+          )
+        )
+      };
+    }
+
+    function getCaretakerApiKey(id) {
+      return (whatsappConfig.caretakerKeys && whatsappConfig.caretakerKeys[id]) || '';
+    }
+
+    function setCaretakerApiKey(id, apiKey) {
+      if (!whatsappConfig.caretakerKeys) whatsappConfig.caretakerKeys = {};
+      const cleaned = String(apiKey || '').trim();
+      if (cleaned) {
+        whatsappConfig.caretakerKeys[id] = cleaned;
+      } else {
+        delete whatsappConfig.caretakerKeys[id];
+      }
+    }
+
+    async function load() {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (raw) {
+        try {
+          const data = JSON.parse(raw);
+          state = Object.assign(state, data);
+        } catch (e) {}
+      }
+      renderAll();
+      await loadWhatsAppSettings();
+    }
+
+    function save() {
+      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+      syncToServer();
+    }
+
+    function syncToServer() {
+      try {
+        fetch("/api/data", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(state)
+        }).catch(() => {});
+      } catch (e) {}
+    }
+
+    async function loadWhatsAppSettings() {
+      try {
+        const resp = await fetch("/api/whatsapp-config");
+        if (!resp.ok) return;
+        const data = await resp.json();
+        whatsappConfig = {
+          defaultPhone: normalizePhone(data.default_phone || ''),
+          defaultApiKey: String(data.default_api_key || '').trim(),
+          caretakerKeys: Object.assign({}, data.caretaker_keys || {})
+        };
+        renderWhatsAppSettings();
+        renderAll();
+      } catch (e) {}
+    }
+
+    async function persistWhatsAppSettings(showSuccess) {
+      const phone = normalizePhone(whatsappConfig.defaultPhone);
+      const apiKey = String(whatsappConfig.defaultApiKey || '').trim();
+      if (phone && phone.length < 10) {
+        alert('Default WhatsApp number should be at least 10 digits');
+        return false;
+      }
+      if (!phone && apiKey) {
+        alert('Add the default WhatsApp number too');
+        return false;
+      }
+      whatsappConfig.defaultPhone = phone;
+      whatsappConfig.defaultApiKey = apiKey;
+      try {
+        const resp = await fetch("/api/whatsapp-config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(buildWhatsAppConfigPayload())
+        });
+        if (!resp.ok) {
+          const error = await resp.json().catch(() => ({}));
+          throw new Error(error.error || 'Failed to save WhatsApp settings');
+        }
+        const data = await resp.json();
+        whatsappConfig = {
+          defaultPhone: normalizePhone(data.default_phone || ''),
+          defaultApiKey: String(data.default_api_key || '').trim(),
+          caretakerKeys: Object.assign({}, data.caretaker_keys || {})
+        };
+        renderWhatsAppSettings();
+        renderAll();
+        if (showSuccess) alert('WhatsApp settings saved.');
+        return true;
+      } catch (err) {
+        alert('Failed to save WhatsApp settings: ' + err.message);
+        return false;
+      }
+    }
+
+    async function saveWhatsAppSettings() {
+      whatsappConfig.defaultPhone = document.getElementById('wa-default-phone').value.trim();
+      whatsappConfig.defaultApiKey = document.getElementById('wa-default-api-key').value.trim();
+      await persistWhatsAppSettings(true);
+    }
+
+    function renderWhatsAppSettings(syncInputs) {
+      if (syncInputs !== false) {
+        document.getElementById('wa-default-phone').value = whatsappConfig.defaultPhone || '';
+        document.getElementById('wa-default-api-key').value = whatsappConfig.defaultApiKey || '';
+      }
+      const hasDefault = !!(whatsappConfig.defaultPhone && whatsappConfig.defaultApiKey);
+      const defaultMsg = hasDefault
+        ? `Default fallback is ready for ${whatsappConfig.defaultPhone}.`
+        : 'No default fallback is configured yet.';
+      const matchingCount = state.caretakers.filter(c => normalizePhone(c.phone) === whatsappConfig.defaultPhone).length;
+      const extraMsg = hasDefault && matchingCount > 0
+        ? ` ${matchingCount} caretaker${matchingCount === 1 ? '' : 's'} will use it if their own key is blank.`
+        : ' Extra caretakers need their own CallMeBot API key.';
+      document.getElementById('whatsapp-status').textContent = defaultMsg + extraMsg;
+    }
+
+    let editingMedId = null;
+    let editingTimes = [];
+    let editingCaretakerId = null;
+
+    function showMedicineForm() {
+      editingMedId = null;
+      editingTimes = [];
+      document.getElementById('form-title').textContent = 'Add new medicine';
+      document.getElementById('med-name').value = '';
+      document.getElementById('med-dose').value = '';
+      document.getElementById('med-time').value = '';
+      document.getElementById('med-times-list').innerHTML = '';
+      document.getElementById('medicine-form').style.display = 'block';
+    }
+
+    function editMedicine(id) {
+      const med = state.medicines.find(m => m.id === id);
+      if (!med) return;
+      editingMedId = id;
+      editingTimes = [...(med.times || [])];
+      document.getElementById('form-title').textContent = 'Edit medicine';
+      document.getElementById('med-name').value = med.name;
+      document.getElementById('med-dose').value = med.dose || '';
+      document.getElementById('med-time').value = '';
+      renderTimesUI();
+      document.getElementById('medicine-form').style.display = 'block';
+    }
+
+    function hideMedicineForm() {
+      document.getElementById('medicine-form').style.display = 'none';
+      editingMedId = null;
+      editingTimes = [];
+    }
+
+    function renderTimesUI() {
+      let html = '';
+      for (let i = 0; i < editingTimes.length; i++) {
+        html += `<div style="display: flex; gap: 6px; margin-bottom: 6px;">
+          <div style="flex: 1; padding: 8px; background: rgba(255,255,255,0.5); border-radius: var(--radius); font-size: 14px;">${editingTimes[i]}</div>
+          <button class="btn ghost" onclick="removeReminderTime(${i})" style="padding: 6px 10px; font-size: 12px;">Remove</button>
+        </div>`;
+      }
+      document.getElementById('med-times-list').innerHTML = html || '<small style="color: var(--muted);">No times added yet</small>';
+    }
+
+    function addReminderTime() {
+      const time = document.getElementById('med-time').value.trim();
+      if (!time) { alert('Enter a time'); return; }
+      if (!/^\d{1,2}:\d{2}$/.test(time)) { alert('Use format HH:MM'); return; }
+      if (editingTimes.includes(time)) { alert('Time already added'); return; }
+      editingTimes.push(time);
+      editingTimes.sort();
+      document.getElementById('med-time').value = '';
+      renderTimesUI();
+    }
+
+    function removeReminderTime(idx) {
+      editingTimes.splice(idx, 1);
+      renderTimesUI();
+    }
+
+    function saveMedicine() {
+      const name = document.getElementById('med-name').value.trim();
+      const dose = document.getElementById('med-dose').value.trim();
+      if (!name) { alert('Enter medicine name'); return; }
+      if (editingTimes.length === 0) { alert('Add at least one reminder time'); return; }
+
+      if (editingMedId) {
+        const med = state.medicines.find(m => m.id === editingMedId);
+        if (med) {
+          med.name = name;
+          med.dose = dose;
+          med.times = editingTimes;
+        }
+      } else {
+        state.medicines.push({
+          id: Math.random().toString(36),
+          name, dose, times: editingTimes, active: true
+        });
+      }
+      save();
+      hideMedicineForm();
+      renderAll();
+    }
+
+    function removeMedicine(id) {
+      if (confirm('Remove this medicine?')) {
+        state.medicines = state.medicines.filter(m => m.id !== id);
+        save();
+        renderAll();
+      }
+    }
+
+    function showCaretakerForm() {
+      editingCaretakerId = null;
+      document.getElementById('caretaker-form-title').textContent = 'Add caretaker';
+      document.getElementById('caretaker-name').value = '';
+      document.getElementById('caretaker-phone').value = '';
+      document.getElementById('caretaker-api-key').value = '';
+      document.getElementById('caretaker-form').style.display = 'block';
+    }
+
+    function hideCaretakerForm() {
+      document.getElementById('caretaker-form').style.display = 'none';
+      editingCaretakerId = null;
+    }
+
+    function editCaretaker(id) {
+      const caretaker = state.caretakers.find(c => c.id === id);
+      if (!caretaker) return;
+      editingCaretakerId = id;
+      document.getElementById('caretaker-form-title').textContent = 'Edit caretaker';
+      document.getElementById('caretaker-name').value = caretaker.name || '';
+      document.getElementById('caretaker-phone').value = caretaker.phone || '';
+      document.getElementById('caretaker-api-key').value = getCaretakerApiKey(id);
+      document.getElementById('caretaker-form').style.display = 'block';
+    }
+
+    async function saveCaretaker() {
+      const name = document.getElementById('caretaker-name').value.trim();
+      const phone = normalizePhone(document.getElementById('caretaker-phone').value.trim());
+      const apiKey = document.getElementById('caretaker-api-key').value.trim();
+      if (!name) { alert('Enter caretaker name'); return; }
+      if (!phone) { alert('Enter WhatsApp number'); return; }
+      if (!/^\d+$/.test(phone)) { alert('Phone number should contain only digits'); return; }
+      if (phone.length < 10) { alert('Phone number should be at least 10 digits'); return; }
+
+      const caretakerId = editingCaretakerId || Math.random().toString(36);
+      if (editingCaretakerId) {
+        const caretaker = state.caretakers.find(c => c.id === editingCaretakerId);
+        if (!caretaker) return;
+        caretaker.name = name;
+        caretaker.phone = phone;
+      } else {
+        state.caretakers.push({
+          id: caretakerId,
+          name,
+          phone,
+          addedDate: new Date().toISOString()
+        });
+      }
+      setCaretakerApiKey(caretakerId, apiKey);
+      save();
+      const settingsSaved = await persistWhatsAppSettings(false);
+      if (!settingsSaved) return;
+      hideCaretakerForm();
+      renderAll();
+    }
+
+    async function removeCaretaker(id) {
+      if (confirm('Remove this caretaker?')) {
+        state.caretakers = state.caretakers.filter(c => c.id !== id);
+        setCaretakerApiKey(id, '');
+        save();
+        await persistWhatsAppSettings(false);
+        renderAll();
+      }
+    }
+
+    function logActivity(action, medicineId, medicineName, activityId, activityName, caretakerId) {
+      const record = state.records[state.today] || {};
+      if (!record.activityLog) record.activityLog = [];
+      record.activityLog.push({
+        timestamp: new Date().toISOString(),
+        caretakerId,
+        action,
+        medicineId,
+        medicineName,
+        activityId,
+        activityName
+      });
+      state.records[state.today] = record;
+    }
+
+    function showActivityForm() { document.getElementById('activity-form').style.display = 'block'; }
+    function hideActivityForm() {
+      document.getElementById('activity-form').style.display = 'none';
+      document.getElementById('act-name').value = '';
+      document.getElementById('act-instructions').value = '';
+    }
+
+    function addActivity() {
+      const name = document.getElementById('act-name').value.trim();
+      if (!name) { alert('Enter activity name'); return; }
+      state.activities.push({
+        id: Math.random().toString(36),
+        name,
+        instructions: document.getElementById('act-instructions').value.trim(),
+        active: true
+      });
+      save();
+      hideActivityForm();
+      renderAll();
+    }
+
+    function removeActivity(id) {
+      state.activities = state.activities.filter(a => a.id !== id);
+      save();
+      renderAll();
+    }
+
+    function setMedicineTaken(medId, taken) {
+      const med = state.medicines.find(m => m.id === medId);
+      if (!med) return;
+
+      let record = state.records[state.viewDate];
+      if (!record) {
+        record = state.records[state.viewDate] = { medicines: {}, activities: {}, checkin: {}, activityLog: [] };
+      }
+      if (!record.medicines) record.medicines = {};
+      if (!record.medicines[medId]) record.medicines[medId] = { status: null };
+      record.medicines[medId].status = taken ? 'taken' : null;
+
+      // Get caretaker for logging
+      let caretakerId = state.currentCaretaker;
+      if (taken && !caretakerId && state.caretakers.length > 0) {
+        const names = state.caretakers.map(c => c.name).join(', ');
+        caretakerId = prompt(`Who is marking this medicine taken?\n(${names})\n\nEnter caretaker name:`) || null;
+        if (caretakerId) {
+          const caretaker = state.caretakers.find(c => c.name === caretakerId);
+          if (caretaker) caretakerId = caretaker.id;
+        }
+      }
+
+      if (taken && caretakerId) {
+        logActivity('medicine_done', medId, med.name, null, null, caretakerId);
+      } else if (!taken && caretakerId) {
+        logActivity('medicine_missed', medId, med.name, null, null, caretakerId);
+      }
+
+      save();
+      renderAll();
+    }
+
+    function setActivityDone(actId, done) {
+      const act = state.activities.find(a => a.id === actId);
+      if (!act) return;
+
+      let record = state.records[state.viewDate];
+      if (!record) {
+        record = state.records[state.viewDate] = { medicines: {}, activities: {}, checkin: {}, activityLog: [] };
+      }
+      if (!record.activities) record.activities = {};
+      if (!record.activities[actId]) record.activities[actId] = { done: false };
+      record.activities[actId].done = done;
+
+      // Get caretaker for logging
+      let caretakerId = state.currentCaretaker;
+      if (done && !caretakerId && state.caretakers.length > 0) {
+        const names = state.caretakers.map(c => c.name).join(', ');
+        caretakerId = prompt(`Who completed this activity?\n(${names})\n\nEnter caretaker name:`) || null;
+        if (caretakerId) {
+          const caretaker = state.caretakers.find(c => c.name === caretakerId);
+          if (caretaker) caretakerId = caretaker.id;
+        }
+      }
+
+      if (done && caretakerId) {
+        logActivity('activity_done', null, null, actId, act.name, caretakerId);
+      }
+
+      save();
+      renderAll();
+    }
+
+    function saveCheckin() {
+      let record = state.records[state.viewDate];
+      if (!record) {
+        record = state.records[state.viewDate] = { medicines: {}, activities: {}, checkin: {} };
+      }
+      record.checkin = {
+        pain: document.getElementById('checkin-pain').value,
+        energy: document.getElementById('checkin-energy').value,
+        sleep: document.getElementById('checkin-sleep').value,
+        water: document.getElementById('checkin-water').value,
+        notes: document.getElementById('checkin-notes').value
+      };
+      save();
+    }
+
+    function previousDay() {
+      const d = new Date(state.viewDate);
+      d.setDate(d.getDate() - 1);
+      state.viewDate = formatDate(d);
+      renderAll();
+    }
+
+    function nextDay() {
+      const d = new Date(state.viewDate);
+      d.setDate(d.getDate() + 1);
+      state.viewDate = formatDate(d);
+      renderAll();
+    }
+
+    function exportData() {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `kare-${state.profile.name || 'record'}-${state.today}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    function importData() {
+      document.getElementById('import-file').click();
+    }
+
+    document.getElementById('import-file').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const data = JSON.parse(evt.target.result);
+          state = Object.assign(state, data);
+          save();
+          renderAll();
+          alert('Record restored.');
+        } catch (err) {
+          alert('Failed to import: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    function renderAll() {
+      document.getElementById('profile-name').value = state.profile.name;
+      document.getElementById('profile-caregiver').value = state.profile.caregiver;
+      renderWhatsAppSettings(false);
+
+      // Save profile on input
+      document.getElementById('profile-name').onchange = (e) => {
+        state.profile.name = e.target.value;
+        save();
+      };
+      document.getElementById('profile-caregiver').onchange = (e) => {
+        state.profile.caregiver = e.target.value;
+        save();
+      };
+
+      // Caretakers list
+      let carHtml = '';
+      for (const car of state.caretakers) {
+        const phone = normalizePhone(car.phone);
+        const hasOwnKey = !!getCaretakerApiKey(car.id);
+        let reminderStatus = 'Needs CallMeBot API key';
+        if (hasOwnKey) {
+          reminderStatus = 'Own CallMeBot key saved';
+        } else if (phone && phone === whatsappConfig.defaultPhone && whatsappConfig.defaultApiKey) {
+          reminderStatus = 'Uses default WhatsApp settings';
+        }
+        carHtml += `<div class="list-item">
+          <div class="list-item-name">
+            <strong>${car.name}</strong>
+            <small>${phone}</small><br>
+            <small>${reminderStatus}</small>
+          </div>
+          <div class="list-item-actions">
+            <button class="btn ghost" onclick="editCaretaker('${car.id}')">Edit</button>
+            <button class="btn ghost" onclick="removeCaretaker('${car.id}')">Remove</button>
+          </div>
+        </div>`;
+      }
+      document.getElementById('caretakers-list').innerHTML = carHtml || '<p style="color: var(--muted);">No caretakers yet</p>';
+
+      // Medicines list
+      let medHtml = '';
+      for (const med of state.medicines) {
+        const timesStr = (med.times && med.times.length) ? med.times.join(', ') : 'no times set';
+        medHtml += `<div class="list-item">
+          <div class="list-item-name">
+            <strong>${med.name}</strong>
+            <small>${med.dose ? med.dose + ' • ' : ''}${timesStr}</small>
+          </div>
+          <div class="list-item-actions">
+            <button class="btn ghost" onclick="editMedicine('${med.id}')" style="padding: 6px 12px; font-size: 12px;">Edit</button>
+            <button class="btn ghost" onclick="removeMedicine('${med.id}')" style="padding: 6px 12px; font-size: 12px;">Remove</button>
+          </div>
+        </div>`;
+      }
+      document.getElementById('medicines-list').innerHTML = medHtml || '<p style="color: var(--muted);">No medicines yet</p>';
+
+      // Activities list
+      let actHtml = '';
+      for (const act of state.activities) {
+        actHtml += `<div class="list-item">
+          <div class="list-item-name">
+            <strong>${act.name}</strong>
+            <small>${act.instructions || ''}</small>
+          </div>
+          <div class="list-item-actions">
+            <button class="btn ghost" onclick="removeActivity('${act.id}')">Remove</button>
+          </div>
+        </div>`;
+      }
+      document.getElementById('activities-list').innerHTML = actHtml || '<p style="color: var(--muted);">No activities yet</p>';
+
+      // Today view
+      const record = state.records[state.viewDate] || {};
+      const isToday = state.viewDate === state.today;
+
+      document.getElementById('today-label').textContent = (isToday ? 'Today' : 'View: ') + ' — ' + dateLabel(state.viewDate);
+
+      let medTodayHtml = '';
+      let medDone = 0, medCount = 0;
+      for (const med of state.medicines) {
+        const status = record.medicines?.[med.id]?.status || null;
+        medCount++;
+        if (status === 'taken') medDone++;
+        const timesStr = (med.times && med.times.length) ? ' at ' + med.times.join(', ') : '';
+        medTodayHtml += `<div class="checkbox-row">
+          <input type="checkbox" id="med-${med.id}" ${status === 'taken' ? 'checked' : ''} onchange="setMedicineTaken('${med.id}', this.checked ? 'taken' : null); saveCheckin();">
+          <label for="med-${med.id}">${med.name} ${med.dose ? '(' + med.dose + ')' : ''}${timesStr}</label>
+        </div>`;
+      }
+      document.getElementById('today-medicines').innerHTML = medTodayHtml || '<p style="color: var(--muted);">No medicines</p>';
+      document.getElementById('med-count').textContent = medCount;
+      document.getElementById('med-done').textContent = medDone;
+
+      let actTodayHtml = '';
+      let actDone = 0;
+      for (const act of state.activities) {
+        const done = record.activities?.[act.id]?.done || false;
+        if (done) actDone++;
+        actTodayHtml += `<div class="checkbox-row">
+          <input type="checkbox" id="act-${act.id}" ${done ? 'checked' : ''} onchange="setActivityDone('${act.id}', this.checked); saveCheckin();">
+          <label for="act-${act.id}">${act.name} ${act.instructions ? '— ' + act.instructions : ''}</label>
+        </div>`;
+      }
+      document.getElementById('today-activities').innerHTML = actTodayHtml || '<p style="color: var(--muted);">No activities</p>';
+      document.getElementById('act-count').textContent = state.activities.length;
+      document.getElementById('act-done').textContent = actDone;
+
+      // Check-in
+      const checkin = record.checkin || {};
+      document.getElementById('checkin-pain').value = checkin.pain || '';
+      document.getElementById('checkin-energy').value = checkin.energy || '';
+      document.getElementById('checkin-sleep').value = checkin.sleep || '';
+      document.getElementById('checkin-water').value = checkin.water || '';
+      document.getElementById('checkin-notes').value = checkin.notes || '';
+
+      document.getElementById('checkin-pain').onchange = saveCheckin;
+      document.getElementById('checkin-energy').onchange = saveCheckin;
+      document.getElementById('checkin-sleep').onchange = saveCheckin;
+      document.getElementById('checkin-water').onchange = saveCheckin;
+      document.getElementById('checkin-notes').onchange = saveCheckin;
+
+      // History with Activity Log
+      const historyRecord = state.records[state.viewDate] || {};
+      const actLog = historyRecord.activityLog || [];
+
+      // Left panel: Activity log
+      let leftHtml = '<div style="display: flex; flex-direction: column; gap: 8px;"><strong style="margin-bottom: 8px;">Activity Log</strong>';
+      if (actLog.length === 0) {
+        leftHtml += '<small style="color: var(--muted);">No activities logged yet</small>';
+      } else {
+        for (const entry of actLog.slice().reverse()) {
+          const car = state.caretakers.find(c => c.id === entry.caretakerId);
+          const carName = car ? car.name : 'Unknown';
+          const time = new Date(entry.timestamp).toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'});
+          let label = '';
+          if (entry.action === 'medicine_done') {
+            label = `✓ ${entry.medicineName} — Done by ${carName}`;
+          } else if (entry.action === 'medicine_missed') {
+            label = `✗ ${entry.medicineName} — Missed by ${carName}`;
+          } else if (entry.action === 'activity_done') {
+            label = `✓ ${entry.activityName} — Done by ${carName}`;
+          }
+          leftHtml += `<div style="padding: 8px; background: rgba(255,255,255,0.4); border-radius: var(--radius); border-left: 3px solid var(--teal);">
+            <small style="color: var(--muted); display: block;">${time}</small>
+            <small>${label}</small>
+          </div>`;
+        }
+      }
+      leftHtml += '</div>';
+
+      // Right panel: Statistics and other date range
+      let rightHtml = '<div style="display: flex; flex-direction: column; gap: 8px;"><strong style="margin-bottom: 8px;">Summary</strong>';
+      const medsDone = Object.values(historyRecord.medicines || {}).filter(m => m.status === 'taken').length;
+      const medsTot = Object.keys(historyRecord.medicines || {}).length;
+      const activitiesDoneToday = Object.values(historyRecord.activities || {}).filter(a => a.done).length;
+      const actTot = Object.keys(historyRecord.activities || {}).length;
+      rightHtml += `<div style="padding: 8px; background: rgba(255,255,255,0.4); border-radius: var(--radius);">
+        <small style="display: block; color: var(--muted); margin-bottom: 4px;">Today's Progress</small>
+        <small><strong>${medsDone}/${medsTot}</strong> medicines taken</small><br>
+        <small><strong>${activitiesDoneToday}/${actTot}</strong> activities done</small>
+      </div>`;
+
+      // Recent days summary
+      rightHtml += '<div style="padding: 8px; background: rgba(255,255,255,0.4); border-radius: var(--radius);"><small style="color: var(--muted); display: block; margin-bottom: 6px;">Past 7 Days</small>';
+      const keys = Object.keys(state.records).sort().reverse();
+      for (const key of keys.slice(0, 7)) {
+        const rec = state.records[key];
+        const mDone = Object.values(rec.medicines || {}).filter(m => m.status === 'taken').length;
+        const mTot = Object.keys(rec.medicines || {}).length;
+        const aDone = Object.values(rec.activities || {}).filter(a => a.done).length;
+        const aTot = Object.keys(rec.activities || {}).length;
+        rightHtml += `<small style="display: block; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(0,0,0,0.1);">
+          <strong>${dateLabel(key).split(',')[0]}</strong>: ${mDone}/${mTot} meds • ${aDone}/${aTot} acts
+        </small>`;
+      }
+      rightHtml += '</div></div>';
+
+      const histHtml = `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        ${leftHtml}
+        ${rightHtml}
+      </div>`;
+
+      document.getElementById('history-view').innerHTML = histHtml;
+      document.getElementById('history-date').textContent = dateLabel(state.viewDate);
+    }
+
+    load();
+  </script>
+</body>
+</html>
