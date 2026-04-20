@@ -395,20 +395,34 @@
         <div id="form-title" style="font-size: 14px; color: var(--muted); margin-bottom: 12px;"></div>
         <div class="field">
           <label>Medicine name</label>
-          <input id="med-name" type="text" placeholder="e.g. Paracetamol">
+          <input id="med-name" type="text" placeholder="e.g. Augmentin">
         </div>
         <div class="field">
-          <label>Dosage</label>
-          <input id="med-dose" type="text" placeholder="e.g. 500mg">
+          <label>Dosage per dose</label>
+          <input id="med-dose" type="text" placeholder="e.g. 500mg, 1 tablet">
         </div>
-        <div class="field">
-          <label>Reminder times (add multiple if needed)</label>
-          <div id="med-times-list" style="margin-bottom: 10px;"></div>
-          <div style="display: flex; gap: 8px;">
-            <input id="med-time" type="text" placeholder="HH:MM (e.g. 09:00)" style="flex: 1;">
-            <button class="btn ghost" onclick="addReminderTime()" style="padding: 10px 12px;">+ Add Time</button>
+        <div class="form-row">
+          <div class="field">
+            <label>Start date</label>
+            <input id="med-start" type="date" oninput="updateMedEndDisplay()">
+          </div>
+          <div class="field">
+            <label>Course duration (days)</label>
+            <input id="med-duration" type="number" min="1" placeholder="e.g. 5" oninput="updateMedEndDisplay()">
           </div>
         </div>
+        <div style="font-size: 12px; color: var(--muted); margin-top: -8px; margin-bottom: 12px;" id="med-end-display">Ends: —</div>
+        <div class="field">
+          <label>Doses per day</label>
+          <select id="med-frequency" onchange="renderDoseTimesUI()">
+            <option value="1">1 time a day</option>
+            <option value="2">2 times a day</option>
+            <option value="3">3 times a day</option>
+            <option value="4">4 times a day</option>
+            <option value="5">5 times a day</option>
+          </select>
+        </div>
+        <div id="med-dose-times"></div>
         <div class="actions">
           <button class="btn primary" onclick="saveMedicine()">Save</button>
           <button class="btn ghost" onclick="hideMedicineForm()">Cancel</button>
@@ -670,8 +684,11 @@
       document.getElementById('form-title').textContent = 'Add new medicine';
       document.getElementById('med-name').value = '';
       document.getElementById('med-dose').value = '';
-      document.getElementById('med-time').value = '';
-      document.getElementById('med-times-list').innerHTML = '';
+      document.getElementById('med-start').value = state.today;
+      document.getElementById('med-duration').value = '';
+      document.getElementById('med-end-display').textContent = 'Ends: —';
+      document.getElementById('med-frequency').value = '1';
+      renderDoseTimesUI();
       document.getElementById('medicine-form').style.display = 'block';
     }
 
@@ -683,8 +700,18 @@
       document.getElementById('form-title').textContent = 'Edit medicine';
       document.getElementById('med-name').value = med.name;
       document.getElementById('med-dose').value = med.dose || '';
-      document.getElementById('med-time').value = '';
-      renderTimesUI();
+      document.getElementById('med-start').value = med.startDate || state.today;
+      const freq = med.frequency || med.times?.length || 1;
+      document.getElementById('med-frequency').value = String(freq);
+      if (med.startDate && med.endDate) {
+        const ms = new Date(med.endDate + 'T00:00:00') - new Date(med.startDate + 'T00:00:00');
+        document.getElementById('med-duration').value = Math.round(ms / 86400000) + 1;
+        document.getElementById('med-end-display').textContent = `Ends: ${med.endDate}`;
+      } else {
+        document.getElementById('med-duration').value = '';
+        document.getElementById('med-end-display').textContent = 'No end date set';
+      }
+      renderDoseTimesUI();
       document.getElementById('medicine-form').style.display = 'block';
     }
 
@@ -694,51 +721,57 @@
       editingTimes = [];
     }
 
-    function renderTimesUI() {
+    function updateMedEndDisplay() {
+      const start = document.getElementById('med-start').value;
+      const dur = parseInt(document.getElementById('med-duration').value);
+      if (start && dur > 0) {
+        const d = new Date(start + 'T00:00:00');
+        d.setDate(d.getDate() + dur - 1);
+        document.getElementById('med-end-display').textContent = `Ends: ${d.toISOString().split('T')[0]}`;
+      } else {
+        document.getElementById('med-end-display').textContent = 'Ends: —';
+      }
+    }
+
+    function renderDoseTimesUI() {
+      const freq = parseInt(document.getElementById('med-frequency').value) || 1;
       let html = '';
-      for (let i = 0; i < editingTimes.length; i++) {
-        html += `<div style="display: flex; gap: 6px; margin-bottom: 6px;">
-          <div style="flex: 1; padding: 8px; background: rgba(255,255,255,0.5); border-radius: var(--radius); font-size: 14px;">${editingTimes[i]}</div>
-          <button class="btn ghost" onclick="removeReminderTime(${i})" style="padding: 6px 10px; font-size: 12px;">Remove</button>
+      for (let i = 0; i < freq; i++) {
+        const val = editingTimes[i] || '';
+        html += `<div class="field" style="margin-bottom: 8px;">
+          <label style="font-size: 13px;">Dose ${i + 1} reminder time</label>
+          <input type="text" id="med-dose-time-${i}" value="${val}" placeholder="HH:MM (e.g. 09:00)">
         </div>`;
       }
-      document.getElementById('med-times-list').innerHTML = html || '<small style="color: var(--muted);">No times added yet</small>';
-    }
-
-    function addReminderTime() {
-      const time = document.getElementById('med-time').value.trim();
-      if (!time) { alert('Enter a time'); return; }
-      if (!/^\d{1,2}:\d{2}$/.test(time)) { alert('Use format HH:MM'); return; }
-      if (editingTimes.includes(time)) { alert('Time already added'); return; }
-      editingTimes.push(time);
-      editingTimes.sort();
-      document.getElementById('med-time').value = '';
-      renderTimesUI();
-    }
-
-    function removeReminderTime(idx) {
-      editingTimes.splice(idx, 1);
-      renderTimesUI();
+      document.getElementById('med-dose-times').innerHTML = html;
     }
 
     function saveMedicine() {
       const name = document.getElementById('med-name').value.trim();
       const dose = document.getElementById('med-dose').value.trim();
+      const startDate = document.getElementById('med-start').value;
+      const duration = parseInt(document.getElementById('med-duration').value);
+      const frequency = parseInt(document.getElementById('med-frequency').value) || 1;
       if (!name) { alert('Enter medicine name'); return; }
-      if (editingTimes.length === 0) { alert('Add at least one reminder time'); return; }
-
+      if (!startDate) { alert('Enter a start date'); return; }
+      const times = [];
+      for (let i = 0; i < frequency; i++) {
+        const t = (document.getElementById(`med-dose-time-${i}`)?.value || '').trim();
+        if (t && !/^\d{1,2}:\d{2}$/.test(t)) { alert(`Dose ${i + 1} time must be in HH:MM format`); return; }
+        times.push(t);
+      }
+      let endDate = null;
+      if (duration > 0) {
+        const d = new Date(startDate + 'T00:00:00');
+        d.setDate(d.getDate() + duration - 1);
+        endDate = d.toISOString().split('T')[0];
+      }
+      const medData = { name, dose, frequency, times, startDate, endDate, active: true };
       if (editingMedId) {
         const med = state.medicines.find(m => m.id === editingMedId);
-        if (med) {
-          med.name = name;
-          med.dose = dose;
-          med.times = editingTimes;
-        }
+        if (med) Object.assign(med, medData);
       } else {
-        state.medicines.push({
-          id: Math.random().toString(36),
-          name, dose, times: editingTimes, active: true
-        });
+        state.medicines.push({ id: Math.random().toString(36).slice(2), ...medData });
       }
       save();
       hideMedicineForm();
@@ -1087,11 +1120,21 @@
       // Medicines list
       let medHtml = '';
       for (const med of state.medicines) {
-        const timesStr = (med.times && med.times.length) ? med.times.join(', ') : 'no times set';
+        const today = state.today;
+        const isCompleted = med.endDate && med.endDate < today;
+        const isUpcoming = med.startDate && med.startDate > today;
+        const statusColor = isCompleted ? '#aaa' : (isUpcoming ? '#f5a623' : '#4caf50');
+        const statusLabel = isCompleted ? 'completed' : (isUpcoming ? 'upcoming' : 'active');
+        const courseStr = med.startDate
+          ? `${med.startDate}${med.endDate ? ' → ' + med.endDate : ' (no end)'}`
+          : 'no dates set';
+        const freq = med.frequency || med.times?.length || 0;
+        const timesStr = med.times?.filter(t => t).join(', ') || '—';
         medHtml += `<div class="list-item">
           <div class="list-item-name">
             <strong>${med.name}</strong>
-            <small>${med.dose ? med.dose + ' • ' : ''}${timesStr}</small>
+            <small>${med.dose ? med.dose + ' • ' : ''}${freq}×/day at ${timesStr}</small>
+            <small style="color:${statusColor};">${courseStr} · ${statusLabel}</small>
           </div>
           <div class="list-item-actions">
             <button class="btn ghost" onclick="editMedicine('${med.id}')" style="padding: 6px 12px; font-size: 12px;">Edit</button>
@@ -1127,16 +1170,20 @@
       let medTodayHtml = '';
       let medDone = 0, medCount = 0;
       for (const med of state.medicines) {
+        const vd = state.viewDate;
+        if (med.startDate && vd < med.startDate) continue;
+        if (med.endDate && vd > med.endDate) continue;
         const status = record.medicines?.[med.id]?.status || null;
         medCount++;
         if (status === 'taken') medDone++;
-        const timesStr = (med.times && med.times.length) ? ' at ' + med.times.join(', ') : '';
+        const timesStr = med.times?.filter(t => t).join(', ');
+        const subtitle = [med.dose, timesStr ? `at ${timesStr}` : ''].filter(Boolean).join(' · ');
         medTodayHtml += `<div class="checkbox-row">
           <input type="checkbox" id="med-${med.id}" ${status === 'taken' ? 'checked' : ''} onchange="setMedicineTaken('${med.id}', this.checked ? 'taken' : null); saveCheckin();">
-          <label for="med-${med.id}">${med.name} ${med.dose ? '(' + med.dose + ')' : ''}${timesStr}</label>
+          <label for="med-${med.id}"><strong>${med.name}</strong>${subtitle ? ' — ' + subtitle : ''}</label>
         </div>`;
       }
-      document.getElementById('today-medicines').innerHTML = medTodayHtml || '<p style="color: var(--muted);">No medicines</p>';
+      document.getElementById('today-medicines').innerHTML = medTodayHtml || '<p style="color: var(--muted);">No medicines scheduled for this day</p>';
       document.getElementById('med-count').textContent = medCount;
       document.getElementById('med-done').textContent = medDone;
 

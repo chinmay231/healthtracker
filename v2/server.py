@@ -240,19 +240,27 @@ def check_reminders() -> None:
     for med in meds:
         if not med.get("active", True):
             continue
-        name   = med.get("name", "Medicine")
-        dose   = med.get("dose", "")
-        times  = med.get("times") or []
-        for raw_time in times:
-            slot_24 = _parse_am_pm_time(raw_time)
-            if not slot_24:
+        start_date = med.get("startDate") or med.get("start_date") or ""
+        end_date   = med.get("endDate")   or med.get("end_date")   or ""
+        if start_date and today < start_date:
+            continue
+        if end_date and today > end_date:
+            continue
+        name      = med.get("name", "Medicine")
+        dose      = med.get("dose", "")
+        frequency = med.get("frequency", 1)
+        times     = med.get("times") or []
+        for dose_idx, raw_time in enumerate(times):
+            if not raw_time:
                 continue
-            if slot_24 != hhmm:
+            slot_24 = _parse_am_pm_time(raw_time)
+            if not slot_24 or slot_24 != hhmm:
                 continue
             key = f"{med.get('id', name)}::{today}::{slot_24}"
             if key in notified:
                 continue
-            label = f"💊 Time for {name}"
+            dose_num = dose_idx + 1
+            label = f"💊 Dose {dose_num}/{frequency}: {name}"
             if dose:
                 label += f" ({dose})"
             label += f" at {raw_time}"
