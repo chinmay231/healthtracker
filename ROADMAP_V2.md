@@ -141,4 +141,54 @@ M4 depends on M2 (OAuth token) and M1 (the file to sync). M5 can run in parallel
 
 ---
 
+## V2 Summary
+
+- M1: Replace brittle `tracker-data.json` with a local SQLite backend and REST API, plus one-time migration support.
+- M2: Add Google OAuth authentication so users sign in and only access their own data.
+- M3: Build role-aware onboarding for Patient / Caretaker / Both, with caretaker links and permissions.
+- M4: Offer a cloud storage choice: local by default, optional Google Drive sync for cross-device access.
+- M5: Harden the platform with systemd support, env-based secrets, scheduler improvements, retry logic, rate limiting, and health checks.
+
+## Future Additions
+
+- Caretaker invite flow (link-based or email-based) and shared patient access controls.
+- Option for manual vs. automatic sync and better conflict resolution for cloud storage.
+- Separate notification channels per account and richer reminder delivery beyond WhatsApp.
+- PWA/mobile UX improvements for better phone use and onboarding.
+- V3 candidates: encrypted Drive storage, HIPAA/GDPR compliance hardening, and optional hosted SaaS deployment.
+
+---
+
+## V2 Execution Plan
+
+### Phase 1 — Design and local storage preparation
+- Define the SQLite schema for `users`, `health_logs`, `daily_vitals`, `reminders`, and `caretaker_links`.
+- Design the REST API contract for reading/writing app data and fetching daily vitals.
+- Plan a backward compatibility migration path from `tracker-data.json` to `kare.db`.
+- Document expected data shape, query patterns, and export formats.
+
+### Phase 2 — Build the SQLite backend and migration
+- Add SQLite support to the server stack.
+- Implement database initialization and schema creation on first run.
+- Write a migration script that reads existing `tracker-data.json`, transforms records, and inserts them into the new DB.
+- Preserve user settings and WhatsApp configuration during migration.
+
+### Phase 3 — Connect the UI and API
+- Update the front-end to use the new REST endpoints instead of direct JSON file handling.
+- Implement daily vitals and metric logging using table-backed records.
+- Add export/import helpers for JSON and optional CSV reports.
+
+### Phase 4 — Validation and hardening
+- Build tests or manual checks for migration correctness and data integrity.
+- Verify support for long-running storage growth: many dates, many reminders, many logs.
+- Add backups or automatic DB snapshots before migration.
+- Ensure a single `kare.db` file is the main storage artifact.
+
+### Phase 5 — Future storage UX
+- Add a setting for storage preference: Local only or Google Drive sync.
+- Keep local SQLite as the primary source of truth; sync only as an optional layer.
+- Use CSV/JSON exports for reporting, not as the main storage engine.
+
+---
+
 *Roadmap created: 2026-04-19 | Status: Planning*
