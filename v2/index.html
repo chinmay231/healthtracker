@@ -442,20 +442,34 @@
         <div id="act-form-title" style="font-size: 14px; color: var(--muted); margin-bottom: 12px;"></div>
         <div class="field">
           <label>Activity name</label>
-          <input id="act-name" type="text" placeholder="e.g. Walk, Stretching, Breathing">
+          <input id="act-name" type="text" placeholder="e.g. BP Check, Walk, Stretching">
         </div>
         <div class="field">
-          <label>Instructions (optional)</label>
-          <input id="act-instructions" type="text" placeholder="e.g. 10 minute walk">
+          <label>Instructions / what to record (optional)</label>
+          <input id="act-instructions" type="text" placeholder="e.g. Record BP reading, 10 minute walk">
         </div>
-        <div class="field">
-          <label>Reminder times (add multiple if needed)</label>
-          <div id="act-times-list" style="margin-bottom: 10px;"></div>
-          <div style="display: flex; gap: 8px;">
-            <input id="act-time" type="text" placeholder="HH:MM (e.g. 09:00)" style="flex: 1;">
-            <button class="btn ghost" onclick="addActReminderTime()" style="padding: 10px 12px;">+ Add Time</button>
+        <div class="form-row">
+          <div class="field">
+            <label>Start date</label>
+            <input id="act-start" type="date" oninput="updateActEndDisplay()">
+          </div>
+          <div class="field">
+            <label>Duration (days)</label>
+            <input id="act-duration" type="number" min="1" placeholder="e.g. 7" oninput="updateActEndDisplay()">
           </div>
         </div>
+        <div style="font-size: 12px; color: var(--muted); margin-top: -8px; margin-bottom: 12px;" id="act-end-display">Ends: —</div>
+        <div class="field">
+          <label>Times per day</label>
+          <select id="act-frequency" onchange="renderActOccTimesUI()">
+            <option value="1">1 time a day</option>
+            <option value="2">2 times a day</option>
+            <option value="3">3 times a day</option>
+            <option value="4">4 times a day</option>
+            <option value="5">5 times a day</option>
+          </select>
+        </div>
+        <div id="act-occ-times"></div>
         <div class="actions">
           <button class="btn primary" onclick="saveActivity()">Save</button>
           <button class="btn ghost" onclick="hideActivityForm()">Cancel</button>
@@ -543,6 +557,7 @@
   </div>
 
   <script>
+
     let state = {
       profile: { name: "", caregiver: "" },
       caretakers: [],
@@ -872,8 +887,11 @@
       document.getElementById('act-form-title').textContent = 'Add new activity';
       document.getElementById('act-name').value = '';
       document.getElementById('act-instructions').value = '';
-      document.getElementById('act-time').value = '';
-      document.getElementById('act-times-list').innerHTML = '';
+      document.getElementById('act-start').value = state.today;
+      document.getElementById('act-duration').value = '';
+      document.getElementById('act-end-display').textContent = 'Ends: —';
+      document.getElementById('act-frequency').value = '1';
+      renderActOccTimesUI();
       document.getElementById('activity-form').style.display = 'block';
     }
     function hideActivityForm() {
@@ -890,56 +908,75 @@
       document.getElementById('act-form-title').textContent = 'Edit activity';
       document.getElementById('act-name').value = act.name;
       document.getElementById('act-instructions').value = act.instructions || '';
-      document.getElementById('act-time').value = '';
-      renderActTimesUI();
+      document.getElementById('act-start').value = act.startDate || state.today;
+      const freq = act.frequency || act.times?.length || 1;
+      document.getElementById('act-frequency').value = String(freq);
+      if (act.startDate && act.endDate) {
+        const ms = new Date(act.endDate + 'T00:00:00') - new Date(act.startDate + 'T00:00:00');
+        document.getElementById('act-duration').value = Math.round(ms / 86400000) + 1;
+        document.getElementById('act-end-display').textContent = `Ends: ${act.endDate}`;
+      } else {
+        document.getElementById('act-duration').value = '';
+        document.getElementById('act-end-display').textContent = 'No end date set';
+      }
+      renderActOccTimesUI();
       document.getElementById('activity-form').style.display = 'block';
     }
 
-    function renderActTimesUI() {
+    function updateActEndDisplay() {
+      const start = document.getElementById('act-start').value;
+      const dur = parseInt(document.getElementById('act-duration').value);
+      if (start && dur > 0) {
+        const d = new Date(start + 'T00:00:00');
+        d.setDate(d.getDate() + dur - 1);
+        document.getElementById('act-end-display').textContent = `Ends: ${d.toISOString().split('T')[0]}`;
+      } else {
+        document.getElementById('act-end-display').textContent = 'Ends: —';
+      }
+    }
+
+    function renderActOccTimesUI() {
+      const freq = parseInt(document.getElementById('act-frequency').value) || 1;
       let html = '';
-      for (let i = 0; i < editingActTimes.length; i++) {
-        html += `<div style="display: flex; gap: 6px; margin-bottom: 6px;">
-          <div style="flex: 1; padding: 8px; background: rgba(255,255,255,0.5); border-radius: var(--radius); font-size: 14px;">${editingActTimes[i]}</div>
-          <button class="btn ghost" onclick="removeActReminderTime(${i})" style="padding: 6px 10px; font-size: 12px;">Remove</button>
+      for (let i = 0; i < freq; i++) {
+        const val = editingActTimes[i] || '';
+        html += `<div class="field" style="margin-bottom: 8px;">
+          <label style="font-size: 13px;">Occurrence ${i + 1} reminder time</label>
+          <input type="text" id="act-occ-time-${i}" value="${val}" placeholder="HH:MM (e.g. 09:00)">
         </div>`;
       }
-      document.getElementById('act-times-list').innerHTML = html || '<small style="color: var(--muted);">No times added yet</small>';
-    }
-
-    function addActReminderTime() {
-      const time = document.getElementById('act-time').value.trim();
-      if (!time) { alert('Enter a time'); return; }
-      if (!/^\d{1,2}:\d{2}$/.test(time)) { alert('Use format HH:MM'); return; }
-      if (editingActTimes.includes(time)) { alert('Time already added'); return; }
-      editingActTimes.push(time);
-      editingActTimes.sort();
-      document.getElementById('act-time').value = '';
-      renderActTimesUI();
-    }
-
-    function removeActReminderTime(idx) {
-      editingActTimes.splice(idx, 1);
-      renderActTimesUI();
+      document.getElementById('act-occ-times').innerHTML = html;
     }
 
     function saveActivity() {
       const name = document.getElementById('act-name').value.trim();
+      const startDate = document.getElementById('act-start').value;
+      const duration = parseInt(document.getElementById('act-duration').value);
+      const frequency = parseInt(document.getElementById('act-frequency').value) || 1;
       if (!name) { alert('Enter activity name'); return; }
+      if (!startDate) { alert('Enter a start date'); return; }
+      const times = [];
+      for (let i = 0; i < frequency; i++) {
+        const t = (document.getElementById(`act-occ-time-${i}`)?.value || '').trim();
+        if (t && !/^\d{1,2}:\d{2}$/.test(t)) { alert(`Occurrence ${i + 1} time must be HH:MM`); return; }
+        times.push(t);
+      }
+      let endDate = null;
+      if (duration > 0) {
+        const d = new Date(startDate + 'T00:00:00');
+        d.setDate(d.getDate() + duration - 1);
+        endDate = d.toISOString().split('T')[0];
+      }
+      const actData = {
+        name,
+        instructions: document.getElementById('act-instructions').value.trim(),
+        frequency, times, startDate, endDate, active: true
+      };
       if (editingActId) {
         const act = state.activities.find(a => a.id === editingActId);
-        if (act) {
-          act.name = name;
-          act.instructions = document.getElementById('act-instructions').value.trim();
-          act.times = editingActTimes;
-        }
+        if (act) Object.assign(act, actData);
       } else {
-        state.activities.push({
-          id: Math.random().toString(36),
-          name,
-          instructions: document.getElementById('act-instructions').value.trim(),
-          times: editingActTimes,
-          active: true
-        });
+        state.activities.push({ id: Math.random().toString(36).slice(2), ...actData });
       }
       save();
       hideActivityForm();
@@ -952,32 +989,92 @@
       renderAll();
     }
 
-    function setMedicineDoseTaken(medId, doseIdx, taken) {
-      const med = state.medicines.find(m => m.id === medId);
-      if (!med) return;
+    function getDoseRec(medRecord, i) {
+      const d = (medRecord?.doses || [])[i];
+      if (d === undefined || d === null) return { taken: false, note: '' };
+      if (typeof d === 'boolean') return { taken: d, note: '' };
+      return { taken: !!d.taken, note: d.note || '' };
+    }
 
+    function getOccRec(actRecord, i) {
+      if (!actRecord) return { done: false, note: '' };
+      if (actRecord.occurrences) {
+        const o = actRecord.occurrences[i];
+        return o ? { done: !!o.done, note: o.note || '' } : { done: false, note: '' };
+      }
+      return { done: i === 0 ? !!actRecord.done : false, note: '' };
+    }
+
+    function ensureMedDoseRecord(medId) {
       let record = state.records[state.viewDate];
       if (!record) record = state.records[state.viewDate] = { medicines: {}, activities: {}, checkin: {}, activityLog: [] };
       if (!record.medicines) record.medicines = {};
-      if (!record.medicines[medId] || !record.medicines[medId].doses) record.medicines[medId] = { doses: [] };
-      record.medicines[medId].doses[doseIdx] = taken;
+      if (!record.medicines[medId]?.doses) record.medicines[medId] = { doses: [] };
+      return record.medicines[medId];
+    }
+
+    function ensureActOccRecord(actId) {
+      let record = state.records[state.viewDate];
+      if (!record) record = state.records[state.viewDate] = { medicines: {}, activities: {}, checkin: {}, activityLog: [] };
+      if (!record.activities) record.activities = {};
+      if (!record.activities[actId]?.occurrences) record.activities[actId] = { occurrences: [] };
+      return record.activities[actId];
+    }
+
+    function setMedicineDoseTaken(medId, doseIdx, taken) {
+      const med = state.medicines.find(m => m.id === medId);
+      if (!med) return;
+      const dr = ensureMedDoseRecord(medId);
+      const existing = getDoseRec(dr, doseIdx);
+      dr.doses[doseIdx] = { taken, note: existing.note };
 
       let caretakerId = state.currentCaretaker;
       if (taken && !caretakerId && state.caretakers.length > 0) {
         const names = state.caretakers.map(c => c.name).join(', ');
         caretakerId = prompt(`Who is marking ${med.name} Dose ${doseIdx + 1} taken?\n(${names})\n\nEnter caretaker name:`) || null;
         if (caretakerId) {
-          const caretaker = state.caretakers.find(c => c.name === caretakerId);
-          if (caretaker) caretakerId = caretaker.id;
+          const ct = state.caretakers.find(c => c.name === caretakerId);
+          if (ct) caretakerId = ct.id;
         }
       }
-
-      if (caretakerId) {
-        logActivity(taken ? 'medicine_done' : 'medicine_missed', medId, `${med.name} Dose ${doseIdx + 1}`, null, null, caretakerId);
-      }
-
+      if (caretakerId) logActivity(taken ? 'medicine_done' : 'medicine_missed', medId, `${med.name} Dose ${doseIdx + 1}`, null, null, caretakerId);
       save();
       renderAll();
+    }
+
+    function setMedicineDoseNote(medId, doseIdx, note) {
+      const dr = ensureMedDoseRecord(medId);
+      const existing = getDoseRec(dr, doseIdx);
+      dr.doses[doseIdx] = { taken: existing.taken, note };
+      save();
+    }
+
+    function setActivityOccurrenceDone(actId, occIdx, done) {
+      const act = state.activities.find(a => a.id === actId);
+      if (!act) return;
+      const ar = ensureActOccRecord(actId);
+      const existing = getOccRec(ar, occIdx);
+      ar.occurrences[occIdx] = { done, note: existing.note };
+
+      let caretakerId = state.currentCaretaker;
+      if (done && !caretakerId && state.caretakers.length > 0) {
+        const names = state.caretakers.map(c => c.name).join(', ');
+        caretakerId = prompt(`Who completed ${act.name} Occurrence ${occIdx + 1}?\n(${names})\n\nEnter caretaker name:`) || null;
+        if (caretakerId) {
+          const ct = state.caretakers.find(c => c.name === caretakerId);
+          if (ct) caretakerId = ct.id;
+        }
+      }
+      if (caretakerId) logActivity(done ? 'activity_done' : 'activity_missed', null, null, actId, `${act.name} Occ ${occIdx + 1}`, caretakerId);
+      save();
+      renderAll();
+    }
+
+    function setActivityOccurrenceNote(actId, occIdx, note) {
+      const ar = ensureActOccRecord(actId);
+      const existing = getOccRec(ar, occIdx);
+      ar.occurrences[occIdx] = { done: existing.done, note };
+      save();
     }
 
     function setActivityDone(actId, done) {
@@ -1141,11 +1238,21 @@
       // Activities list
       let actHtml = '';
       for (const act of state.activities) {
-        const timesStr = (act.times && act.times.length) ? act.times.join(', ') : 'no reminders set';
+        const td = state.today;
+        const isCompleted = act.endDate && act.endDate < td;
+        const isUpcoming = act.startDate && act.startDate > td;
+        const statusColor = isCompleted ? '#aaa' : (isUpcoming ? '#f5a623' : '#4caf50');
+        const statusLabel = isCompleted ? 'completed' : (isUpcoming ? 'upcoming' : 'active');
+        const courseStr = act.startDate
+          ? `${act.startDate}${act.endDate ? ' → ' + act.endDate : ' (no end)'}`
+          : 'no dates set';
+        const freq = act.frequency || act.times?.length || 0;
+        const timesStr = act.times?.filter(t => t).join(', ') || '—';
         actHtml += `<div class="list-item">
           <div class="list-item-name">
             <strong>${act.name}</strong>
-            <small>${act.instructions ? act.instructions + ' • ' : ''}${timesStr}</small>
+            <small>${act.instructions ? act.instructions + ' • ' : ''}${freq}×/day at ${timesStr}</small>
+            <small style="color:${statusColor};">${courseStr} · ${statusLabel}</small>
           </div>
           <div class="list-item-actions">
             <button class="btn ghost" onclick="editActivity('${act.id}')" style="padding: 6px 12px; font-size: 12px;">Edit</button>
@@ -1174,14 +1281,17 @@
           <strong>${med.name}</strong>${med.dose ? `<span style="color:var(--muted); font-size:13px;"> — ${med.dose}</span>` : ''}
         </div>`;
         for (let i = 0; i < freq; i++) {
-          const taken = doses[i] === true;
-          if (taken) medDone++;
+          const dr = getDoseRec(medRecord, i);
+          if (dr.taken) medDone++;
           medCount++;
           const t = med.times?.[i];
           medTodayHtml += `<div class="checkbox-row" style="margin-left: 14px;">
-            <input type="checkbox" id="med-${med.id}-${i}" ${taken ? 'checked' : ''} onchange="setMedicineDoseTaken('${med.id}', ${i}, this.checked); saveCheckin();">
+            <input type="checkbox" id="med-${med.id}-${i}" ${dr.taken ? 'checked' : ''} onchange="setMedicineDoseTaken('${med.id}', ${i}, this.checked); saveCheckin();">
             <label for="med-${med.id}-${i}">Dose ${i + 1}${t ? ' — ' + t : ''}</label>
-          </div>`;
+          </div>
+          <input type="text" value="${dr.note}" placeholder="Note (e.g. took with food, felt nauseous)…"
+            style="margin-left:28px;margin-bottom:8px;font-size:12px;padding:4px 8px;width:calc(100% - 36px);box-sizing:border-box;background:rgba(255,255,255,0.4);border:1px solid rgba(0,0,0,0.1);border-radius:4px;"
+            onchange="setMedicineDoseNote('${med.id}', ${i}, this.value)">`;
         }
       }
       document.getElementById('today-medicines').innerHTML = medTodayHtml || '<p style="color: var(--muted);">No medicines scheduled for this day</p>';
@@ -1189,17 +1299,32 @@
       document.getElementById('med-done').textContent = medDone;
 
       let actTodayHtml = '';
-      let actDone = 0;
+      let actDone = 0, actCount = 0;
       for (const act of state.activities) {
-        const done = record.activities?.[act.id]?.done || false;
-        if (done) actDone++;
-        actTodayHtml += `<div class="checkbox-row">
-          <input type="checkbox" id="act-${act.id}" ${done ? 'checked' : ''} onchange="setActivityDone('${act.id}', this.checked); saveCheckin();">
-          <label for="act-${act.id}">${act.name} ${act.instructions ? '— ' + act.instructions : ''}</label>
+        const vd = state.viewDate;
+        if (act.startDate && vd < act.startDate) continue;
+        if (act.endDate && vd > act.endDate) continue;
+        const actFreq = act.frequency || act.times?.length || 1;
+        const actRecord = record.activities?.[act.id] || {};
+        actTodayHtml += `<div style="margin: 12px 0 4px;">
+          <strong>${act.name}</strong>${act.instructions ? `<span style="color:var(--muted);font-size:13px;"> — ${act.instructions}</span>` : ''}
         </div>`;
+        for (let i = 0; i < actFreq; i++) {
+          const or = getOccRec(actRecord, i);
+          if (or.done) actDone++;
+          actCount++;
+          const t = act.times?.[i];
+          actTodayHtml += `<div class="checkbox-row" style="margin-left: 14px;">
+            <input type="checkbox" id="act-${act.id}-${i}" ${or.done ? 'checked' : ''} onchange="setActivityOccurrenceDone('${act.id}', ${i}, this.checked); saveCheckin();">
+            <label for="act-${act.id}-${i}">Occurrence ${i + 1}${t ? ' — ' + t : ''}</label>
+          </div>
+          <input type="text" value="${or.note}" placeholder="${act.instructions || 'Add note…'}"
+            style="margin-left:28px;margin-bottom:8px;font-size:12px;padding:4px 8px;width:calc(100% - 36px);box-sizing:border-box;background:rgba(255,255,255,0.4);border:1px solid rgba(0,0,0,0.1);border-radius:4px;"
+            onchange="setActivityOccurrenceNote('${act.id}', ${i}, this.value)">`;
+        }
       }
-      document.getElementById('today-activities').innerHTML = actTodayHtml || '<p style="color: var(--muted);">No activities</p>';
-      document.getElementById('act-count').textContent = state.activities.length;
+      document.getElementById('today-activities').innerHTML = actTodayHtml || '<p style="color: var(--muted);">No activities scheduled for this day</p>';
+      document.getElementById('act-count').textContent = actCount;
       document.getElementById('act-done').textContent = actDone;
 
       // Check-in

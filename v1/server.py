@@ -273,6 +273,12 @@ def check_reminders() -> None:
     for act in activities:
         if not act.get("active", True):
             continue
+        act_start = act.get("startDate") or act.get("start_date") or ""
+        act_end   = act.get("endDate")   or act.get("end_date")   or ""
+        if act_start and today < act_start:
+            continue
+        if act_end and today > act_end:
+            continue
         name  = act.get("name", "Activity")
         times = act.get("times") or []
         if not times:
