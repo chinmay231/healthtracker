@@ -695,6 +695,46 @@
     let editingActId = null;
     let editingActTimes = [];
 
+    function renderTimePicker(id, val24) {
+      let h24 = 8, m = 0;
+      if (val24) {
+        const parts = (val24 + '').split(':');
+        h24 = parseInt(parts[0]) || 8;
+        m = parseInt(parts[1]) || 0;
+      }
+      const ampm = h24 >= 12 ? 'PM' : 'AM';
+      const h12 = h24 % 12 || 12;
+      const hourOpts = Array.from({length: 12}, (_, i) => {
+        const v = i + 1;
+        return `<option value="${v}"${v === h12 ? ' selected' : ''}>${v}</option>`;
+      }).join('');
+      const minOpts = Array.from({length: 60}, (_, i) =>
+        `<option value="${i}"${i === m ? ' selected' : ''}>${String(i).padStart(2,'0')}</option>`
+      ).join('');
+      return `<div style="display:flex;gap:6px;align-items:center;">
+        <select id="${id}-h" style="padding:6px 4px;border-radius:6px;border:1px solid rgba(0,0,0,0.15);font-size:14px;">${hourOpts}</select>
+        <span style="font-weight:600;">:</span>
+        <select id="${id}-m" style="padding:6px 4px;border-radius:6px;border:1px solid rgba(0,0,0,0.15);font-size:14px;">${minOpts}</select>
+        <select id="${id}-ap" style="padding:6px 8px;border-radius:6px;border:1px solid rgba(0,0,0,0.15);font-size:14px;">
+          <option value="AM"${ampm === 'AM' ? ' selected' : ''}>AM</option>
+          <option value="PM"${ampm === 'PM' ? ' selected' : ''}>PM</option>
+        </select>
+      </div>`;
+    }
+
+    function getTimePickerValue(id) {
+      const hEl = document.getElementById(id + '-h');
+      const mEl = document.getElementById(id + '-m');
+      const apEl = document.getElementById(id + '-ap');
+      if (!hEl || !mEl || !apEl) return '';
+      let h = parseInt(hEl.value);
+      const m = parseInt(mEl.value);
+      const ap = apEl.value;
+      if (ap === 'PM' && h !== 12) h += 12;
+      if (ap === 'AM' && h === 12) h = 0;
+      return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+    }
+
     function showMedicineForm() {
       editingMedId = null;
       editingTimes = [];
@@ -757,7 +797,7 @@
         const val = editingTimes[i] || '';
         html += `<div class="field" style="margin-bottom: 8px;">
           <label style="font-size: 13px;">Dose ${i + 1} reminder time</label>
-          <input type="text" id="med-dose-time-${i}" value="${val}" placeholder="HH:MM (e.g. 09:00)">
+          ${renderTimePicker(`med-dose-time-${i}`, val)}
         </div>`;
       }
       document.getElementById('med-dose-times').innerHTML = html;
@@ -773,15 +813,13 @@
       if (!startDate) { alert('Enter a start date'); return; }
       const times = [];
       for (let i = 0; i < frequency; i++) {
-        const t = (document.getElementById(`med-dose-time-${i}`)?.value || '').trim();
-        if (t && !/^\d{1,2}:\d{2}$/.test(t)) { alert(`Dose ${i + 1} time must be in HH:MM format`); return; }
-        times.push(t);
+        times.push(getTimePickerValue(`med-dose-time-${i}`));
       }
       let endDate = null;
       if (duration > 0) {
         const d = new Date(startDate + 'T00:00:00');
         d.setDate(d.getDate() + duration - 1);
-        endDate = d.toISOString().split('T')[0];
+        endDate = formatDate(d);
       }
       const medData = { name, dose, frequency, times, startDate, endDate, active: true };
       if (editingMedId) {
@@ -945,7 +983,7 @@
         const val = editingActTimes[i] || '';
         html += `<div class="field" style="margin-bottom: 8px;">
           <label style="font-size: 13px;">Occurrence ${i + 1} reminder time</label>
-          <input type="text" id="act-occ-time-${i}" value="${val}" placeholder="HH:MM (e.g. 09:00)">
+          ${renderTimePicker(`act-occ-time-${i}`, val)}
         </div>`;
       }
       document.getElementById('act-occ-times').innerHTML = html;
@@ -960,15 +998,13 @@
       if (!startDate) { alert('Enter a start date'); return; }
       const times = [];
       for (let i = 0; i < frequency; i++) {
-        const t = (document.getElementById(`act-occ-time-${i}`)?.value || '').trim();
-        if (t && !/^\d{1,2}:\d{2}$/.test(t)) { alert(`Occurrence ${i + 1} time must be HH:MM`); return; }
-        times.push(t);
+        times.push(getTimePickerValue(`act-occ-time-${i}`));
       }
       let endDate = null;
       if (duration > 0) {
         const d = new Date(startDate + 'T00:00:00');
         d.setDate(d.getDate() + duration - 1);
-        endDate = d.toISOString().split('T')[0];
+        endDate = formatDate(d);
       }
       const actData = {
         name,
