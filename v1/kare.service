@@ -1,0 +1,13 @@
+[Unit]
+Description=KARE Health Tracker
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/healthtracker/v1
+ExecStart=python3 %h/healthtracker/v1/server.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

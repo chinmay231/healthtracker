@@ -7,11 +7,17 @@ if not exist .env (
     if errorlevel 1 exit /b 1
 )
 
-:: Try python, then py (Windows launcher)
+:: Read PORT from .env (default 8084)
+set PORT=8084
+for /f "usebackq tokens=1,2 delims==" %%a in (".env") do (
+    if /i "%%a"=="PORT" set PORT=%%b
+)
+
+echo Starting KARE on port %PORT%...
+start "" http://localhost:%PORT%
+
 python --version >nul 2>&1
 if not errorlevel 1 (
-    echo Starting KARE...
-    start "" http://localhost:8080
     python server.py
     pause
     exit /b 0
@@ -19,8 +25,6 @@ if not errorlevel 1 (
 
 py --version >nul 2>&1
 if not errorlevel 1 (
-    echo Starting KARE...
-    start "" http://localhost:8080
     py server.py
     pause
     exit /b 0

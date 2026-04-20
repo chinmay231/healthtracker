@@ -11,6 +11,8 @@ venv/
 tracker-data.json
 notified.json
 whatsapp-config.json
+kare.log
+kare.pid
 
 # Environment secrets (use .env.example as the template)
 .env

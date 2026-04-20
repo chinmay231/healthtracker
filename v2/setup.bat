@@ -33,19 +33,6 @@ if errorlevel 1 (
     set PYTHON=python
 )
 
-:: Also update start.bat to use the right python command
-echo @echo off > start.bat.tmp
-echo cd /d "%%~dp0" >> start.bat.tmp
-echo if not exist .env ( >> start.bat.tmp
-echo     echo .env not found. Running setup first... >> start.bat.tmp
-echo     call setup.bat >> start.bat.tmp
-echo ) >> start.bat.tmp
-echo echo Starting KARE... >> start.bat.tmp
-echo start "" http://localhost:8080 >> start.bat.tmp
-echo %PYTHON% server.py >> start.bat.tmp
-echo pause >> start.bat.tmp
-move /y start.bat.tmp start.bat >nul 2>&1
-
 for /f "tokens=*" %%i in ('python --version 2^>^&1') do set PYVER=%%i
 echo  Found: %PYVER%
 echo.

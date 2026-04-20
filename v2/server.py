@@ -371,17 +371,27 @@ def main() -> None:
     threading.Thread(target=_reminder_loop, daemon=True).start()
 
     server = HTTPServer(("0.0.0.0", PORT), Handler)
-    local_url  = f"http://localhost:{PORT}"
+    local_url = f"http://localhost:{PORT}"
+
     try:
         import socket
         lan_ip = socket.gethostbyname(socket.gethostname())
     except Exception:
-        lan_ip = "your-laptop-ip"
+        lan_ip = "unknown"
 
-    print(f"KARE running on 0.0.0.0:{PORT}")
-    print(f"  Local:  {local_url}")
-    print(f"  Network (same WiFi/LAN): http://{lan_ip}:{PORT}")
-    print(f"  Remote: http://<your-public-ip>:{PORT}")
+    try:
+        with urllib.request.urlopen("https://api.ipify.org", timeout=4) as _r:
+            public_ip = _r.read().decode().strip()
+    except Exception:
+        public_ip = None
+
+    print(f"\nKARE running on 0.0.0.0:{PORT}")
+    print(f"  Local:          {local_url}")
+    print(f"  LAN:            http://{lan_ip}:{PORT}")
+    if public_ip:
+        print(f"  Remote (WAN):   http://{public_ip}:{PORT}  ← requires port {PORT} forwarded on your router")
+    else:
+        print(f"  Remote (WAN):   could not detect public IP — ensure port {PORT} is forwarded on your router")
     print(f"\nPress Ctrl+C to stop.\n")
 
     try:
