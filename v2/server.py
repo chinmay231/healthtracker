@@ -265,17 +265,23 @@ def check_reminders() -> None:
     for act in activities:
         if not act.get("active", True):
             continue
-        name       = act.get("name", "Activity")
-        remind_at  = _parse_am_pm_time(act.get("reminder_time") or act.get("time") or "")
-        if not remind_at or remind_at != hhmm:
-            continue
-        key = f"{act.get('id', name)}::{today}::{remind_at}"
-        if key in notified:
-            continue
-        for target in targets:
-            send_whatsapp_to(f"🏃 Reminder: {name}", target["phone"], target["api_key"])
-        notified[key] = today
-        changed = True
+        name  = act.get("name", "Activity")
+        times = act.get("times") or []
+        if not times:
+            legacy = act.get("reminder_time") or act.get("time") or ""
+            if legacy:
+                times = [legacy]
+        for raw_time in times:
+            remind_at = _parse_am_pm_time(raw_time)
+            if not remind_at or remind_at != hhmm:
+                continue
+            key = f"{act.get('id', name)}::{today}::{remind_at}"
+            if key in notified:
+                continue
+            for target in targets:
+                send_whatsapp_to(f"🏃 Reminder: {name}", target["phone"], target["api_key"])
+            notified[key] = today
+            changed = True
 
     if changed:
         save_notified(notified)

@@ -356,31 +356,10 @@
       </div>
     </div>
 
-    <!-- WhatsApp Settings -->
-    <div class="card">
-      <div class="card-head"><h2>WhatsApp Settings</h2></div>
-      <p class="help-text" style="margin-bottom: 16px;">The default CallMeBot setup below is the fallback for one WhatsApp number. Each extra caretaker usually needs their own CallMeBot API key in the caretaker form.</p>
-      <div class="form-row">
-        <div class="field">
-          <label>Default WhatsApp number</label>
-          <input id="wa-default-phone" type="text" placeholder="Country code + number (e.g. 919876543210)">
-        </div>
-        <div class="field">
-          <label>Default CallMeBot API key</label>
-          <input id="wa-default-api-key" type="password" placeholder="Paste the default key here">
-        </div>
-      </div>
-      <p class="help-text">This is stored only on this device. Caretaker API keys stay out of the record backup file.</p>
-      <div class="actions">
-        <button class="btn primary" onclick="saveWhatsAppSettings()">Save WhatsApp Settings</button>
-      </div>
-      <div id="whatsapp-status" class="status-note"></div>
-    </div>
-
     <!-- Caretakers -->
     <div class="card">
       <div class="card-head"><h2>Caretakers</h2></div>
-      <p style="font-size: 13px; color: var(--muted); margin-bottom: 16px;">Add WhatsApp numbers of caretakers who will receive medicine reminders and track activities. If the number is different from the default WhatsApp settings above, add that caretaker's own CallMeBot API key too.</p>
+      <p style="font-size: 13px; color: var(--muted); margin-bottom: 16px;">Add WhatsApp numbers of caretakers who will receive medicine reminders and track activities. Each caretaker needs their own CallMeBot API key to receive notifications.</p>
       <button class="btn primary" onclick="showCaretakerForm()">+ Add Caretaker</button>
       <div id="caretaker-form" style="display:none; margin-top: 16px; padding: 16px; background: rgba(255,255,255,0.3); border-radius: var(--radius);">
         <div id="caretaker-form-title" style="font-size: 14px; color: var(--muted); margin-bottom: 12px;"></div>
@@ -395,7 +374,7 @@
         <div class="field">
           <label>CallMeBot API key</label>
           <input id="caretaker-api-key" type="password" placeholder="Needed for this caretaker's own number">
-          <p class="help-text">Leave this blank only if this caretaker uses the same number as the default WhatsApp settings above.</p>
+          <p class="help-text">Get a free API key at callmebot.com/blog/free-api-whatsapp-messages/</p>
         </div>
         <div class="actions">
           <button class="btn primary" onclick="saveCaretaker()">Save</button>
@@ -446,18 +425,25 @@
       </div>
       <button class="btn primary" onclick="showActivityForm()">+ Add Activity</button>
       <div id="activity-form" style="display:none; margin-top: 16px; padding: 16px; background: rgba(255,255,255,0.3); border-radius: var(--radius);">
+        <div id="act-form-title" style="font-size: 14px; color: var(--muted); margin-bottom: 12px;"></div>
         <div class="field">
           <label>Activity name</label>
           <input id="act-name" type="text" placeholder="e.g. Walk, Stretching, Breathing">
         </div>
-        <div class="form-row">
-          <div class="field">
-            <label>Instructions (optional)</label>
-            <input id="act-instructions" type="text" placeholder="e.g. 10 minute walk">
+        <div class="field">
+          <label>Instructions (optional)</label>
+          <input id="act-instructions" type="text" placeholder="e.g. 10 minute walk">
+        </div>
+        <div class="field">
+          <label>Reminder times (add multiple if needed)</label>
+          <div id="act-times-list" style="margin-bottom: 10px;"></div>
+          <div style="display: flex; gap: 8px;">
+            <input id="act-time" type="text" placeholder="HH:MM (e.g. 09:00)" style="flex: 1;">
+            <button class="btn ghost" onclick="addActReminderTime()" style="padding: 10px 12px;">+ Add Time</button>
           </div>
         </div>
         <div class="actions">
-          <button class="btn primary" onclick="addActivity()">Save</button>
+          <button class="btn primary" onclick="saveActivity()">Save</button>
           <button class="btn ghost" onclick="hideActivityForm()">Cancel</button>
         </div>
       </div>
@@ -638,7 +624,6 @@
           defaultApiKey: String(data.default_api_key || '').trim(),
           caretakerKeys: Object.assign({}, data.caretaker_keys || {})
         };
-        renderWhatsAppSettings();
         renderAll();
       } catch (e) {}
     }
@@ -672,7 +657,6 @@
           defaultApiKey: String(data.default_api_key || '').trim(),
           caretakerKeys: Object.assign({}, data.caretaker_keys || {})
         };
-        renderWhatsAppSettings();
         renderAll();
         if (showSuccess) alert('WhatsApp settings saved.');
         return true;
@@ -682,31 +666,11 @@
       }
     }
 
-    async function saveWhatsAppSettings() {
-      whatsappConfig.defaultPhone = document.getElementById('wa-default-phone').value.trim();
-      whatsappConfig.defaultApiKey = document.getElementById('wa-default-api-key').value.trim();
-      await persistWhatsAppSettings(true);
-    }
-
-    function renderWhatsAppSettings(syncInputs) {
-      if (syncInputs !== false) {
-        document.getElementById('wa-default-phone').value = whatsappConfig.defaultPhone || '';
-        document.getElementById('wa-default-api-key').value = whatsappConfig.defaultApiKey || '';
-      }
-      const hasDefault = !!(whatsappConfig.defaultPhone && whatsappConfig.defaultApiKey);
-      const defaultMsg = hasDefault
-        ? `Default fallback is ready for ${whatsappConfig.defaultPhone}.`
-        : 'No default fallback is configured yet.';
-      const matchingCount = state.caretakers.filter(c => normalizePhone(c.phone) === whatsappConfig.defaultPhone).length;
-      const extraMsg = hasDefault && matchingCount > 0
-        ? ` ${matchingCount} caretaker${matchingCount === 1 ? '' : 's'} will use it if their own key is blank.`
-        : ' Extra caretakers need their own CallMeBot API key.';
-      document.getElementById('whatsapp-status').textContent = defaultMsg + extraMsg;
-    }
-
     let editingMedId = null;
     let editingTimes = [];
     let editingCaretakerId = null;
+    let editingActId = null;
+    let editingActTimes = [];
 
     function showMedicineForm() {
       editingMedId = null;
@@ -878,22 +842,81 @@
       state.records[state.today] = record;
     }
 
-    function showActivityForm() { document.getElementById('activity-form').style.display = 'block'; }
-    function hideActivityForm() {
-      document.getElementById('activity-form').style.display = 'none';
+    function showActivityForm() {
+      editingActId = null;
+      editingActTimes = [];
+      document.getElementById('act-form-title').textContent = 'Add new activity';
       document.getElementById('act-name').value = '';
       document.getElementById('act-instructions').value = '';
+      document.getElementById('act-time').value = '';
+      document.getElementById('act-times-list').innerHTML = '';
+      document.getElementById('activity-form').style.display = 'block';
+    }
+    function hideActivityForm() {
+      document.getElementById('activity-form').style.display = 'none';
+      editingActId = null;
+      editingActTimes = [];
     }
 
-    function addActivity() {
+    function editActivity(id) {
+      const act = state.activities.find(a => a.id === id);
+      if (!act) return;
+      editingActId = id;
+      editingActTimes = [...(act.times || [])];
+      document.getElementById('act-form-title').textContent = 'Edit activity';
+      document.getElementById('act-name').value = act.name;
+      document.getElementById('act-instructions').value = act.instructions || '';
+      document.getElementById('act-time').value = '';
+      renderActTimesUI();
+      document.getElementById('activity-form').style.display = 'block';
+    }
+
+    function renderActTimesUI() {
+      let html = '';
+      for (let i = 0; i < editingActTimes.length; i++) {
+        html += `<div style="display: flex; gap: 6px; margin-bottom: 6px;">
+          <div style="flex: 1; padding: 8px; background: rgba(255,255,255,0.5); border-radius: var(--radius); font-size: 14px;">${editingActTimes[i]}</div>
+          <button class="btn ghost" onclick="removeActReminderTime(${i})" style="padding: 6px 10px; font-size: 12px;">Remove</button>
+        </div>`;
+      }
+      document.getElementById('act-times-list').innerHTML = html || '<small style="color: var(--muted);">No times added yet</small>';
+    }
+
+    function addActReminderTime() {
+      const time = document.getElementById('act-time').value.trim();
+      if (!time) { alert('Enter a time'); return; }
+      if (!/^\d{1,2}:\d{2}$/.test(time)) { alert('Use format HH:MM'); return; }
+      if (editingActTimes.includes(time)) { alert('Time already added'); return; }
+      editingActTimes.push(time);
+      editingActTimes.sort();
+      document.getElementById('act-time').value = '';
+      renderActTimesUI();
+    }
+
+    function removeActReminderTime(idx) {
+      editingActTimes.splice(idx, 1);
+      renderActTimesUI();
+    }
+
+    function saveActivity() {
       const name = document.getElementById('act-name').value.trim();
       if (!name) { alert('Enter activity name'); return; }
-      state.activities.push({
-        id: Math.random().toString(36),
-        name,
-        instructions: document.getElementById('act-instructions').value.trim(),
-        active: true
-      });
+      if (editingActId) {
+        const act = state.activities.find(a => a.id === editingActId);
+        if (act) {
+          act.name = name;
+          act.instructions = document.getElementById('act-instructions').value.trim();
+          act.times = editingActTimes;
+        }
+      } else {
+        state.activities.push({
+          id: Math.random().toString(36),
+          name,
+          instructions: document.getElementById('act-instructions').value.trim(),
+          times: editingActTimes,
+          active: true
+        });
+      }
       save();
       hideActivityForm();
       renderAll();
@@ -1033,7 +1056,6 @@
     function renderAll() {
       document.getElementById('profile-name').value = state.profile.name;
       document.getElementById('profile-caregiver').value = state.profile.caregiver;
-      renderWhatsAppSettings(false);
 
       // Save profile on input
       document.getElementById('profile-name').onchange = (e) => {
@@ -1090,13 +1112,15 @@
       // Activities list
       let actHtml = '';
       for (const act of state.activities) {
+        const timesStr = (act.times && act.times.length) ? act.times.join(', ') : 'no reminders set';
         actHtml += `<div class="list-item">
           <div class="list-item-name">
             <strong>${act.name}</strong>
-            <small>${act.instructions || ''}</small>
+            <small>${act.instructions ? act.instructions + ' • ' : ''}${timesStr}</small>
           </div>
           <div class="list-item-actions">
-            <button class="btn ghost" onclick="removeActivity('${act.id}')">Remove</button>
+            <button class="btn ghost" onclick="editActivity('${act.id}')" style="padding: 6px 12px; font-size: 12px;">Edit</button>
+            <button class="btn ghost" onclick="removeActivity('${act.id}')" style="padding: 6px 12px; font-size: 12px;">Remove</button>
           </div>
         </div>`;
       }
