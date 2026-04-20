@@ -1163,14 +1163,14 @@
     }
 
     function previousDay() {
-      const d = new Date(state.viewDate);
+      const d = new Date(state.viewDate + 'T00:00:00');
       d.setDate(d.getDate() - 1);
       state.viewDate = formatDate(d);
       renderAll();
     }
 
     function nextDay() {
-      const d = new Date(state.viewDate);
+      const d = new Date(state.viewDate + 'T00:00:00');
       d.setDate(d.getDate() + 1);
       state.viewDate = formatDate(d);
       renderAll();
