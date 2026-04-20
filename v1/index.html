@@ -953,33 +953,28 @@
       renderAll();
     }
 
-    function setMedicineTaken(medId, taken) {
+    function setMedicineDoseTaken(medId, doseIdx, taken) {
       const med = state.medicines.find(m => m.id === medId);
       if (!med) return;
 
       let record = state.records[state.viewDate];
-      if (!record) {
-        record = state.records[state.viewDate] = { medicines: {}, activities: {}, checkin: {}, activityLog: [] };
-      }
+      if (!record) record = state.records[state.viewDate] = { medicines: {}, activities: {}, checkin: {}, activityLog: [] };
       if (!record.medicines) record.medicines = {};
-      if (!record.medicines[medId]) record.medicines[medId] = { status: null };
-      record.medicines[medId].status = taken ? 'taken' : null;
+      if (!record.medicines[medId] || !record.medicines[medId].doses) record.medicines[medId] = { doses: [] };
+      record.medicines[medId].doses[doseIdx] = taken;
 
-      // Get caretaker for logging
       let caretakerId = state.currentCaretaker;
       if (taken && !caretakerId && state.caretakers.length > 0) {
         const names = state.caretakers.map(c => c.name).join(', ');
-        caretakerId = prompt(`Who is marking this medicine taken?\n(${names})\n\nEnter caretaker name:`) || null;
+        caretakerId = prompt(`Who is marking ${med.name} Dose ${doseIdx + 1} taken?\n(${names})\n\nEnter caretaker name:`) || null;
         if (caretakerId) {
           const caretaker = state.caretakers.find(c => c.name === caretakerId);
           if (caretaker) caretakerId = caretaker.id;
         }
       }
 
-      if (taken && caretakerId) {
-        logActivity('medicine_done', medId, med.name, null, null, caretakerId);
-      } else if (!taken && caretakerId) {
-        logActivity('medicine_missed', medId, med.name, null, null, caretakerId);
+      if (caretakerId) {
+        logActivity(taken ? 'medicine_done' : 'medicine_missed', medId, `${med.name} Dose ${doseIdx + 1}`, null, null, caretakerId);
       }
 
       save();
@@ -1173,15 +1168,22 @@
         const vd = state.viewDate;
         if (med.startDate && vd < med.startDate) continue;
         if (med.endDate && vd > med.endDate) continue;
-        const status = record.medicines?.[med.id]?.status || null;
-        medCount++;
-        if (status === 'taken') medDone++;
-        const timesStr = med.times?.filter(t => t).join(', ');
-        const subtitle = [med.dose, timesStr ? `at ${timesStr}` : ''].filter(Boolean).join(' · ');
-        medTodayHtml += `<div class="checkbox-row">
-          <input type="checkbox" id="med-${med.id}" ${status === 'taken' ? 'checked' : ''} onchange="setMedicineTaken('${med.id}', this.checked ? 'taken' : null); saveCheckin();">
-          <label for="med-${med.id}"><strong>${med.name}</strong>${subtitle ? ' — ' + subtitle : ''}</label>
+        const freq = med.frequency || med.times?.length || 1;
+        const medRecord = record.medicines?.[med.id] || {};
+        const doses = medRecord.doses || (medRecord.status === 'taken' ? Array(freq).fill(true) : []);
+        medTodayHtml += `<div style="margin: 12px 0 4px;">
+          <strong>${med.name}</strong>${med.dose ? `<span style="color:var(--muted); font-size:13px;"> — ${med.dose}</span>` : ''}
         </div>`;
+        for (let i = 0; i < freq; i++) {
+          const taken = doses[i] === true;
+          if (taken) medDone++;
+          medCount++;
+          const t = med.times?.[i];
+          medTodayHtml += `<div class="checkbox-row" style="margin-left: 14px;">
+            <input type="checkbox" id="med-${med.id}-${i}" ${taken ? 'checked' : ''} onchange="setMedicineDoseTaken('${med.id}', ${i}, this.checked); saveCheckin();">
+            <label for="med-${med.id}-${i}">Dose ${i + 1}${t ? ' — ' + t : ''}</label>
+          </div>`;
+        }
       }
       document.getElementById('today-medicines').innerHTML = medTodayHtml || '<p style="color: var(--muted);">No medicines scheduled for this day</p>';
       document.getElementById('med-count').textContent = medCount;
