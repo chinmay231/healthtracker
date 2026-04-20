@@ -307,6 +307,26 @@
       position: relative;
       z-index: 1;
     }
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      margin-bottom: 8px;
+      background: rgba(255,250,239,0.7);
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+    }
+    .user-bar select {
+      flex: 1;
+      max-width: 200px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(0,0,0,0.15);
+      font-size: 14px;
+      font-weight: 600;
+      background: rgba(255,255,255,0.7);
+    }
     @media (max-width: 720px) {
       .header {
         grid-template-columns: 1fr;
@@ -336,6 +356,14 @@
         <div class="orb-ring"></div>
         <div class="orb-label">care in rhythm</div>
       </div>
+    </div>
+
+    <!-- User selector bar -->
+    <div class="user-bar">
+      <span style="font-size:13px; color: var(--muted); white-space:nowrap;">Tracking:</span>
+      <select id="user-select" onchange="switchUser(this.value)"></select>
+      <button class="btn ghost" onclick="addUser()" style="white-space:nowrap; font-size:13px;">+ Add User</button>
+      <button class="btn ghost" onclick="deleteUser()" style="white-space:nowrap; font-size:13px; color:var(--bad);">Remove</button>
     </div>
 
     <!-- Profile -->
@@ -559,15 +587,51 @@
   <script>
 
     let state = {
-      profile: { name: "", caregiver: "" },
-      caretakers: [],
-      medicines: [],
-      activities: [],
-      records: {},
+      users: [],
+      activeUserId: null,
       today: formatDate(new Date()),
       viewDate: formatDate(new Date()),
-      currentCaretaker: null
     };
+
+    function cu() {
+      return state.users.find(u => u.id === state.activeUserId) || state.users[0] || {};
+    }
+
+    function switchUser(id) {
+      state.activeUserId = id;
+      state.viewDate = state.today;
+      save();
+      renderAll();
+    }
+
+    function addUser() {
+      const name = prompt('New user name:');
+      if (!name || !name.trim()) return;
+      const uid = 'u' + Math.random().toString(36).slice(2);
+      state.users.push({ id: uid, profile: { name: name.trim(), caregiver: '' }, caretakers: [], medicines: [], activities: [], records: {}, currentCaretaker: null });
+      state.activeUserId = uid;
+      state.viewDate = state.today;
+      save();
+      renderAll();
+    }
+
+    function deleteUser() {
+      if (state.users.length <= 1) { alert('Cannot remove the only user.'); return; }
+      const name = cu().profile?.name || 'this user';
+      if (!confirm(`Remove "${name}" and all their data? This cannot be undone.`)) return;
+      state.users = state.users.filter(u => u.id !== state.activeUserId);
+      state.activeUserId = state.users[0].id;
+      save();
+      renderAll();
+    }
+
+    function renderUserBar() {
+      const sel = document.getElementById('user-select');
+      if (!sel) return;
+      sel.innerHTML = state.users.map(u =>
+        `<option value="${u.id}"${u.id === state.activeUserId ? ' selected' : ''}>${u.profile?.name || 'Unnamed'}</option>`
+      ).join('');
+    }
     let whatsappConfig = {
       defaultPhone: "",
       defaultApiKey: "",
@@ -588,7 +652,7 @@
     }
 
     function buildWhatsAppConfigPayload() {
-      const caretakerIds = new Set(state.caretakers.map(c => c.id));
+      const caretakerIds = new Set(cu().caretakers.map(c => c.id));
       return {
         default_phone: normalizePhone(whatsappConfig.defaultPhone),
         default_api_key: (whatsappConfig.defaultApiKey || '').trim(),
@@ -614,6 +678,35 @@
       }
     }
 
+    function migrateState() {
+      if (!state.users || state.users.length === 0) {
+        const uid = 'u' + Math.random().toString(36).slice(2);
+        state.users = [{
+          id: uid,
+          profile: state.profile || { name: '', caregiver: '' },
+          caretakers: state.caretakers || [],
+          medicines: state.medicines || [],
+          activities: state.activities || [],
+          records: state.records || {},
+          currentCaretaker: state.currentCaretaker || null,
+        }];
+        state.activeUserId = uid;
+        delete state.profile; delete state.caretakers; delete state.medicines;
+        delete state.activities; delete state.records; delete state.currentCaretaker;
+      }
+      if (!state.activeUserId || !state.users.find(u => u.id === state.activeUserId)) {
+        state.activeUserId = state.users[0]?.id || null;
+      }
+      for (const u of state.users) {
+        if (!u.profile) u.profile = { name: '', caregiver: '' };
+        if (!u.caretakers) u.caretakers = [];
+        if (!u.medicines) u.medicines = [];
+        if (!u.activities) u.activities = [];
+        if (!u.records) u.records = {};
+        if (u.currentCaretaker === undefined) u.currentCaretaker = null;
+      }
+    }
+
     async function load() {
       try {
         const resp = await fetch("/api/data");
@@ -622,6 +715,7 @@
           state = Object.assign(state, data);
         }
       } catch (e) {}
+      migrateState();
       // Always reset today/viewDate to the actual current date after loading saved state
       state.today = formatDate(new Date());
       state.viewDate = state.today;
@@ -750,7 +844,7 @@
     }
 
     function editMedicine(id) {
-      const med = state.medicines.find(m => m.id === id);
+      const med = cu().medicines.find(m => m.id === id);
       if (!med) return;
       editingMedId = id;
       editingTimes = [...(med.times || [])];
@@ -823,10 +917,10 @@
       }
       const medData = { name, dose, frequency, times, startDate, endDate, active: true };
       if (editingMedId) {
-        const med = state.medicines.find(m => m.id === editingMedId);
+        const med = cu().medicines.find(m => m.id === editingMedId);
         if (med) Object.assign(med, medData);
       } else {
-        state.medicines.push({ id: Math.random().toString(36).slice(2), ...medData });
+        cu().medicines.push({ id: Math.random().toString(36).slice(2), ...medData });
       }
       save();
       hideMedicineForm();
@@ -835,7 +929,7 @@
 
     function removeMedicine(id) {
       if (confirm('Remove this medicine?')) {
-        state.medicines = state.medicines.filter(m => m.id !== id);
+        cu().medicines = cu().medicines.filter(m => m.id !== id);
         save();
         renderAll();
       }
@@ -856,7 +950,7 @@
     }
 
     function editCaretaker(id) {
-      const caretaker = state.caretakers.find(c => c.id === id);
+      const caretaker = cu().caretakers.find(c => c.id === id);
       if (!caretaker) return;
       editingCaretakerId = id;
       document.getElementById('caretaker-form-title').textContent = 'Edit caretaker';
@@ -877,12 +971,12 @@
 
       const caretakerId = editingCaretakerId || Math.random().toString(36);
       if (editingCaretakerId) {
-        const caretaker = state.caretakers.find(c => c.id === editingCaretakerId);
+        const caretaker = cu().caretakers.find(c => c.id === editingCaretakerId);
         if (!caretaker) return;
         caretaker.name = name;
         caretaker.phone = phone;
       } else {
-        state.caretakers.push({
+        cu().caretakers.push({
           id: caretakerId,
           name,
           phone,
@@ -899,7 +993,7 @@
 
     async function removeCaretaker(id) {
       if (confirm('Remove this caretaker?')) {
-        state.caretakers = state.caretakers.filter(c => c.id !== id);
+        cu().caretakers = cu().caretakers.filter(c => c.id !== id);
         setCaretakerApiKey(id, '');
         save();
         await persistWhatsAppSettings(false);
@@ -908,7 +1002,7 @@
     }
 
     function logActivity(action, medicineId, medicineName, activityId, activityName, caretakerId) {
-      const record = state.records[state.today] || {};
+      const record = cu().records[state.today] || {};
       if (!record.activityLog) record.activityLog = [];
       record.activityLog.push({
         timestamp: new Date().toISOString(),
@@ -919,7 +1013,7 @@
         activityId,
         activityName
       });
-      state.records[state.today] = record;
+      cu().records[state.today] = record;
     }
 
     function showActivityForm() {
@@ -942,7 +1036,7 @@
     }
 
     function editActivity(id) {
-      const act = state.activities.find(a => a.id === id);
+      const act = cu().activities.find(a => a.id === id);
       if (!act) return;
       editingActId = id;
       editingActTimes = [...(act.times || [])];
@@ -1012,10 +1106,10 @@
         frequency, times, startDate, endDate, active: true
       };
       if (editingActId) {
-        const act = state.activities.find(a => a.id === editingActId);
+        const act = cu().activities.find(a => a.id === editingActId);
         if (act) Object.assign(act, actData);
       } else {
-        state.activities.push({ id: Math.random().toString(36).slice(2), ...actData });
+        cu().activities.push({ id: Math.random().toString(36).slice(2), ...actData });
       }
       save();
       hideActivityForm();
@@ -1023,7 +1117,7 @@
     }
 
     function removeActivity(id) {
-      state.activities = state.activities.filter(a => a.id !== id);
+      cu().activities = cu().activities.filter(a => a.id !== id);
       save();
       renderAll();
     }
@@ -1045,34 +1139,34 @@
     }
 
     function ensureMedDoseRecord(medId) {
-      let record = state.records[state.viewDate];
-      if (!record) record = state.records[state.viewDate] = { medicines: {}, activities: {}, checkin: {}, activityLog: [] };
+      let record = cu().records[state.viewDate];
+      if (!record) record = cu().records[state.viewDate] = { medicines: {}, activities: {}, checkin: {}, activityLog: [] };
       if (!record.medicines) record.medicines = {};
       if (!record.medicines[medId]?.doses) record.medicines[medId] = { doses: [] };
       return record.medicines[medId];
     }
 
     function ensureActOccRecord(actId) {
-      let record = state.records[state.viewDate];
-      if (!record) record = state.records[state.viewDate] = { medicines: {}, activities: {}, checkin: {}, activityLog: [] };
+      let record = cu().records[state.viewDate];
+      if (!record) record = cu().records[state.viewDate] = { medicines: {}, activities: {}, checkin: {}, activityLog: [] };
       if (!record.activities) record.activities = {};
       if (!record.activities[actId]?.occurrences) record.activities[actId] = { occurrences: [] };
       return record.activities[actId];
     }
 
     function setMedicineDoseTaken(medId, doseIdx, taken) {
-      const med = state.medicines.find(m => m.id === medId);
+      const med = cu().medicines.find(m => m.id === medId);
       if (!med) return;
       const dr = ensureMedDoseRecord(medId);
       const existing = getDoseRec(dr, doseIdx);
       dr.doses[doseIdx] = { taken, note: existing.note };
 
-      let caretakerId = state.currentCaretaker;
-      if (taken && !caretakerId && state.caretakers.length > 0) {
-        const names = state.caretakers.map(c => c.name).join(', ');
+      let caretakerId = cu().currentCaretaker;
+      if (taken && !caretakerId && cu().caretakers.length > 0) {
+        const names = cu().caretakers.map(c => c.name).join(', ');
         caretakerId = prompt(`Who is marking ${med.name} Dose ${doseIdx + 1} taken?\n(${names})\n\nEnter caretaker name:`) || null;
         if (caretakerId) {
-          const ct = state.caretakers.find(c => c.name === caretakerId);
+          const ct = cu().caretakers.find(c => c.name === caretakerId);
           if (ct) caretakerId = ct.id;
         }
       }
@@ -1089,18 +1183,18 @@
     }
 
     function setActivityOccurrenceDone(actId, occIdx, done) {
-      const act = state.activities.find(a => a.id === actId);
+      const act = cu().activities.find(a => a.id === actId);
       if (!act) return;
       const ar = ensureActOccRecord(actId);
       const existing = getOccRec(ar, occIdx);
       ar.occurrences[occIdx] = { done, note: existing.note };
 
-      let caretakerId = state.currentCaretaker;
-      if (done && !caretakerId && state.caretakers.length > 0) {
-        const names = state.caretakers.map(c => c.name).join(', ');
+      let caretakerId = cu().currentCaretaker;
+      if (done && !caretakerId && cu().caretakers.length > 0) {
+        const names = cu().caretakers.map(c => c.name).join(', ');
         caretakerId = prompt(`Who completed ${act.name} Occurrence ${occIdx + 1}?\n(${names})\n\nEnter caretaker name:`) || null;
         if (caretakerId) {
-          const ct = state.caretakers.find(c => c.name === caretakerId);
+          const ct = cu().caretakers.find(c => c.name === caretakerId);
           if (ct) caretakerId = ct.id;
         }
       }
@@ -1117,24 +1211,24 @@
     }
 
     function setActivityDone(actId, done) {
-      const act = state.activities.find(a => a.id === actId);
+      const act = cu().activities.find(a => a.id === actId);
       if (!act) return;
 
-      let record = state.records[state.viewDate];
+      let record = cu().records[state.viewDate];
       if (!record) {
-        record = state.records[state.viewDate] = { medicines: {}, activities: {}, checkin: {}, activityLog: [] };
+        record = cu().records[state.viewDate] = { medicines: {}, activities: {}, checkin: {}, activityLog: [] };
       }
       if (!record.activities) record.activities = {};
       if (!record.activities[actId]) record.activities[actId] = { done: false };
       record.activities[actId].done = done;
 
       // Get caretaker for logging
-      let caretakerId = state.currentCaretaker;
-      if (done && !caretakerId && state.caretakers.length > 0) {
-        const names = state.caretakers.map(c => c.name).join(', ');
+      let caretakerId = cu().currentCaretaker;
+      if (done && !caretakerId && cu().caretakers.length > 0) {
+        const names = cu().caretakers.map(c => c.name).join(', ');
         caretakerId = prompt(`Who completed this activity?\n(${names})\n\nEnter caretaker name:`) || null;
         if (caretakerId) {
-          const caretaker = state.caretakers.find(c => c.name === caretakerId);
+          const caretaker = cu().caretakers.find(c => c.name === caretakerId);
           if (caretaker) caretakerId = caretaker.id;
         }
       }
@@ -1148,9 +1242,9 @@
     }
 
     function saveCheckin() {
-      let record = state.records[state.viewDate];
+      let record = cu().records[state.viewDate];
       if (!record) {
-        record = state.records[state.viewDate] = { medicines: {}, activities: {}, checkin: {} };
+        record = cu().records[state.viewDate] = { medicines: {}, activities: {}, checkin: {} };
       }
       record.checkin = {
         pain: document.getElementById('checkin-pain').value,
@@ -1180,7 +1274,7 @@
       const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `kare-${state.profile.name || 'record'}-${state.today}.json`;
+      a.download = `kare-${cu().profile.name || 'record'}-${state.today}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1198,6 +1292,9 @@
         try {
           const data = JSON.parse(evt.target.result);
           state = Object.assign(state, data);
+          migrateState();
+          state.today = formatDate(new Date());
+          state.viewDate = state.today;
           save();
           renderAll();
           alert('Record restored.');
@@ -1209,22 +1306,23 @@
     });
 
     function renderAll() {
-      document.getElementById('profile-name').value = state.profile.name;
-      document.getElementById('profile-caregiver').value = state.profile.caregiver;
+      renderUserBar();
+      document.getElementById('profile-name').value = cu().profile?.name || '';
+      document.getElementById('profile-caregiver').value = cu().profile?.caregiver || '';
 
       // Save profile on input
       document.getElementById('profile-name').onchange = (e) => {
-        state.profile.name = e.target.value;
+        cu().profile.name = e.target.value;
         save();
       };
       document.getElementById('profile-caregiver').onchange = (e) => {
-        state.profile.caregiver = e.target.value;
+        cu().profile.caregiver = e.target.value;
         save();
       };
 
       // Caretakers list
       let carHtml = '';
-      for (const car of state.caretakers) {
+      for (const car of cu().caretakers) {
         const phone = normalizePhone(car.phone);
         const hasOwnKey = !!getCaretakerApiKey(car.id);
         let reminderStatus = 'Needs CallMeBot API key';
@@ -1249,7 +1347,7 @@
 
       // Medicines list
       let medHtml = '';
-      for (const med of state.medicines) {
+      for (const med of cu().medicines) {
         const today = state.today;
         const isCompleted = med.endDate && med.endDate < today;
         const isUpcoming = med.startDate && med.startDate > today;
@@ -1276,7 +1374,7 @@
 
       // Activities list
       let actHtml = '';
-      for (const act of state.activities) {
+      for (const act of cu().activities) {
         const td = state.today;
         const isCompleted = act.endDate && act.endDate < td;
         const isUpcoming = act.startDate && act.startDate > td;
@@ -1302,14 +1400,14 @@
       document.getElementById('activities-list').innerHTML = actHtml || '<p style="color: var(--muted);">No activities yet</p>';
 
       // Today view
-      const record = state.records[state.viewDate] || {};
+      const record = cu().records[state.viewDate] || {};
       const isToday = state.viewDate === state.today;
 
       document.getElementById('today-label').textContent = (isToday ? 'Today' : 'View: ') + ' — ' + dateLabel(state.viewDate);
 
       let medTodayHtml = '';
       let medDone = 0, medCount = 0;
-      for (const med of state.medicines) {
+      for (const med of cu().medicines) {
         const vd = state.viewDate;
         if (med.startDate && vd < med.startDate) continue;
         if (med.endDate && vd > med.endDate) continue;
@@ -1339,7 +1437,7 @@
 
       let actTodayHtml = '';
       let actDone = 0, actCount = 0;
-      for (const act of state.activities) {
+      for (const act of cu().activities) {
         const vd = state.viewDate;
         if (act.startDate && vd < act.startDate) continue;
         if (act.endDate && vd > act.endDate) continue;
@@ -1381,7 +1479,7 @@
       document.getElementById('checkin-notes').onchange = saveCheckin;
 
       // History with Activity Log
-      const historyRecord = state.records[state.viewDate] || {};
+      const historyRecord = cu().records[state.viewDate] || {};
       const actLog = historyRecord.activityLog || [];
 
       // Left panel: Activity log
@@ -1390,7 +1488,7 @@
         leftHtml += '<small style="color: var(--muted);">No activities logged yet</small>';
       } else {
         for (const entry of actLog.slice().reverse()) {
-          const car = state.caretakers.find(c => c.id === entry.caretakerId);
+          const car = cu().caretakers.find(c => c.id === entry.caretakerId);
           const carName = car ? car.name : 'Unknown';
           const time = new Date(entry.timestamp).toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'});
           let label = '';
@@ -1413,7 +1511,7 @@
       const vd = state.viewDate;
       let sumMedDone = 0, sumMedTot = 0;
       const medSumLines = [];
-      for (const med of state.medicines) {
+      for (const med of cu().medicines) {
         if (med.startDate && vd < med.startDate) continue;
         if (med.endDate && vd > med.endDate) continue;
         const freq = med.frequency || med.times?.length || 1;
@@ -1425,7 +1523,7 @@
       }
       let sumActDone = 0, sumActTot = 0;
       const actSumLines = [];
-      for (const act of state.activities) {
+      for (const act of cu().activities) {
         if (act.startDate && vd < act.startDate) continue;
         if (act.endDate && vd > act.endDate) continue;
         const freq = act.frequency || act.times?.length || 1;
@@ -1451,11 +1549,11 @@
 
       // Recent days summary
       rightHtml += '<div style="padding: 8px; background: rgba(255,255,255,0.4); border-radius: var(--radius);"><small style="color: var(--muted); display: block; margin-bottom: 6px;">Past 7 Days</small>';
-      const keys = Object.keys(state.records).sort().reverse();
+      const keys = Object.keys(cu().records).sort().reverse();
       for (const key of keys.slice(0, 7)) {
-        const rec = state.records[key];
+        const rec = cu().records[key];
         let mDone = 0, mTot = 0;
-        for (const med of state.medicines) {
+        for (const med of cu().medicines) {
           if (med.startDate && key < med.startDate) continue;
           if (med.endDate && key > med.endDate) continue;
           const freq = med.frequency || med.times?.length || 1;
@@ -1463,7 +1561,7 @@
           for (let i = 0; i < freq; i++) { if (getDoseRec(mr, i).taken) mDone++; mTot++; }
         }
         let aDone = 0, aTot = 0;
-        for (const act of state.activities) {
+        for (const act of cu().activities) {
           if (act.startDate && key < act.startDate) continue;
           if (act.endDate && key > act.endDate) continue;
           const freq = act.frequency || act.times?.length || 1;

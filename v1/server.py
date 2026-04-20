@@ -214,29 +214,13 @@ def _parse_am_pm_time(raw: str) -> str | None:
         return None
     return f"{hour:02d}:{minute:02d}"
 
-def check_reminders() -> None:
-    """Check due medicines/activities and send WhatsApp if needed."""
-    data = load_data()
-    if not data:
-        return
-    whatsapp_config = load_whatsapp_config()
-
-    now    = datetime.now().astimezone()
-    today  = now.strftime("%Y-%m-%d")
-    hhmm   = now.strftime("%H:%M")
-
-    notified = load_notified()
-    # Purge old entries (> 2 days)
-    cutoff = (now - timedelta(days=2)).strftime("%Y-%m-%d")
-    notified = {k: v for k, v in notified.items() if v >= cutoff}
-
+def _check_user_reminders(user: dict, today: str, hhmm: str, targets: list, notified: dict) -> bool:
+    """Check one user's medicines/activities. Returns True if notified dict changed."""
     changed = False
+    user_name = (user.get("profile") or {}).get("name") or "User"
+    prefix = f"[{user_name}] " if user_name else ""
 
-    targets = _build_whatsapp_targets(data, whatsapp_config)
-    if not targets:
-        return
-
-    meds = data.get("medicines") or []
+    meds = user.get("medicines") or []
     for med in meds:
         if not med.get("active", True):
             continue
@@ -256,11 +240,11 @@ def check_reminders() -> None:
             slot_24 = _parse_am_pm_time(raw_time)
             if not slot_24 or slot_24 != hhmm:
                 continue
-            key = f"{med.get('id', name)}::{today}::{slot_24}"
+            key = f"{user.get('id','')}::{med.get('id', name)}::{today}::{slot_24}"
             if key in notified:
                 continue
             dose_num = dose_idx + 1
-            label = f"💊 Dose {dose_num}/{frequency}: {name}"
+            label = f"{prefix}💊 Dose {dose_num}/{frequency}: {name}"
             if dose:
                 label += f" ({dose})"
             label += f" at {raw_time}"
@@ -269,7 +253,7 @@ def check_reminders() -> None:
             notified[key] = today
             changed = True
 
-    activities = data.get("activities") or []
+    activities = user.get("activities") or []
     for act in activities:
         if not act.get("active", True):
             continue
@@ -289,12 +273,44 @@ def check_reminders() -> None:
             remind_at = _parse_am_pm_time(raw_time)
             if not remind_at or remind_at != hhmm:
                 continue
-            key = f"{act.get('id', name)}::{today}::{remind_at}"
+            key = f"{user.get('id','')}::{act.get('id', name)}::{today}::{remind_at}"
             if key in notified:
                 continue
             for target in targets:
-                send_whatsapp_to(f"🏃 Reminder: {name}", target["phone"], target["api_key"])
+                send_whatsapp_to(f"{prefix}🏃 Reminder: {name}", target["phone"], target["api_key"])
             notified[key] = today
+            changed = True
+
+    return changed
+
+
+def check_reminders() -> None:
+    """Check due medicines/activities for all users and send WhatsApp if needed."""
+    data = load_data()
+    if not data:
+        return
+    whatsapp_config = load_whatsapp_config()
+
+    now    = datetime.now().astimezone()
+    today  = now.strftime("%Y-%m-%d")
+    hhmm   = now.strftime("%H:%M")
+
+    notified = load_notified()
+    cutoff = (now - timedelta(days=2)).strftime("%Y-%m-%d")
+    notified = {k: v for k, v in notified.items() if v >= cutoff}
+
+    changed = False
+
+    users = data.get("users") or []
+    if not users:
+        # Legacy single-user flat format
+        users = [data]
+
+    for user in users:
+        targets = _build_whatsapp_targets(user, whatsapp_config)
+        if not targets:
+            continue
+        if _check_user_reminders(user, today, hhmm, targets, notified):
             changed = True
 
     if changed:
