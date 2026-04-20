@@ -652,13 +652,12 @@
     }
 
     function buildWhatsAppConfigPayload() {
-      const caretakerIds = new Set(cu().caretakers.map(c => c.id));
       return {
         default_phone: normalizePhone(whatsappConfig.defaultPhone),
         default_api_key: (whatsappConfig.defaultApiKey || '').trim(),
         caretaker_keys: Object.fromEntries(
           Object.entries(whatsappConfig.caretakerKeys || {}).filter(
-            ([id, value]) => caretakerIds.has(id) && String(value || '').trim()
+            ([, value]) => String(value || '').trim()
           )
         )
       };

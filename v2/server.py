@@ -263,21 +263,24 @@ def _check_user_reminders(user: dict, today: str, hhmm: str, targets: list, noti
             continue
         if act_end and today > act_end:
             continue
-        name  = act.get("name", "Activity")
-        times = act.get("times") or []
+        name      = act.get("name", "Activity")
+        times     = act.get("times") or []
         if not times:
             legacy = act.get("reminder_time") or act.get("time") or ""
             if legacy:
                 times = [legacy]
-        for raw_time in times:
+        frequency = act.get("frequency") or len(times) or 1
+        for occ_idx, raw_time in enumerate(times):
             remind_at = _parse_am_pm_time(raw_time)
             if not remind_at or remind_at != hhmm:
                 continue
-            key = f"{user.get('id','')}::{act.get('id', name)}::{today}::{remind_at}"
+            key = f"{user.get('id','')}::{act.get('id', name)}::{today}::{occ_idx}::{remind_at}"
             if key in notified:
                 continue
+            occ_num = occ_idx + 1
+            label = f"{prefix}🏃 Occurrence {occ_num}/{frequency}: {name} at {raw_time}"
             for target in targets:
-                send_whatsapp_to(f"{prefix}🏃 Reminder: {name}", target["phone"], target["api_key"])
+                send_whatsapp_to(label, target["phone"], target["api_key"])
             notified[key] = today
             changed = True
 
