@@ -1,6 +1,6 @@
 # Healthtracker / KARE
 
-## This REPO is an OPEN REPO at the moment. 
+## This REPO is an OPEN REPO at the moment. - WILL BE MADE PRIVATE soon. 
 This repository contains a local care tracker called KARE, built to manage medicine reminders, daily recovery tracking, and caretaker notifications without forcing data into the cloud.
 
 The app is designed for:
